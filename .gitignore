@@ -1,0 +1,15 @@
+# Environments
+.env
+.env*.
+credentials.yaml
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+venv/
+myfirstproject/

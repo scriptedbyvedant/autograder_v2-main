@@ -1,0 +1,38 @@
+# Web Framework & UI
+streamlit
+
+# Data Handling & Database
+pandas
+Pillow
+psycopg2-binary
+PyMuPDF
+
+# PDF & Report Generation
+reportlab
+
+# AI, Language & Grading Engine
+# Core ML/DL frameworks
+torch
+transformers
+# Fine-tuning (PEFT)
+peft
+bitsandbytes
+accelerate
+trl
+# LangChain Integration
+langchain-core
+langchain-community
+langchain-ollama
+# Vectorization/Embeddings
+sentence-transformers
+# Other specific libraries
+numpy
+sympy
+regex
+
+# Utilities
+python-dotenv
+
+# Development & Testing
+pytest
+plotly

@@ -1,0 +1,4 @@
+title: LLM Academic Grading System
+description: AI-powered multilingual grading platform with explainability, multi-agent support, and rich analytics.
+plugins:
+  - jekyll-relative-links
