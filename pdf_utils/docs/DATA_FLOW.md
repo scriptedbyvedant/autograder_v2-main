@@ -13,30 +13,30 @@ This pipeline describes how course materials (from professors) and student submi
 sequenceDiagram
     participant Prof as Professor
     participant Stu as Student
-    participant UI as Streamlit UI (`st.file_uploader`)
-    participant Parser as PDF Parser (`PyMuPDF`, `re`)
-    participant Backend as Backend Logic (`1_upload_data.py`)
+    participant UI as Streamlit UI (st.file_uploader)
+    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Backend as Backend Logic (1_upload_data.py)
     participant DB as PostgresHandler
-    participant PG as PostgreSQL Database
+    participant PG as PostgreSQL
 
-    box LightCyan Professor Workflow
-        Prof->>UI: Uploads Professor PDF (Questions, Rubric)
-        UI->>Backend: Passes file bytes
-        Backend->>Parser: Extracts raw text from PDF
-        Parser-->>Backend: Returns unstructured text
-        Backend->>Parser: Parses text with Regex for structured content
-        Parser-->>Backend: Returns structured data (JSON)
-        Backend->>DB: Calls `execute_query` with INSERT for `prof_data`
-        DB->>PG: Executes SQL INSERT statement
+    rect rgb(224,255,255)
+        Prof->>UI: Upload professor PDF (questions, rubric)
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>Parser: Parse into structured data
+        Parser-->>Backend: Return JSON structure
+        Backend->>DB: execute_query INSERT into prof_data
+        DB->>PG: SQL insert
     end
 
-    box LightYellow Student Workflow
-        Stu->>UI: Uploads Submission PDF
-        UI->>Backend: Passes file bytes
-        Backend->>Parser: Extracts raw text from PDF
-        Parser-->>Backend: Returns unstructured text
-        Backend->>DB: Calls `execute_query` with INSERT for `student_data`
-        DB->>PG: Executes SQL INSERT statement
+    rect rgb(255,250,205)
+        Stu->>UI: Upload submission PDF
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>DB: execute_query INSERT into student_data
+        DB->>PG: SQL insert
     end
 ```
 
@@ -62,16 +62,16 @@ This diagram shows the end-to-end process when a professor initiates a grading j
 
 ```mermaid
 graph TD
-    A[Start: User clicks "Grade" in UI] --> B{Backend Logic (`2_grading_result.py`)};
-    B --> C[DB: Fetch submissions from `student_data`];
-    B --> D[DB: Fetch rubric from `prof_data`];
-    C --> E{AI Grading Engine};
-    D --> E{AI Grading Engine};
-    E --> F(See Agentic Pipeline for details);
-    F --> G{Grading Result (Score, Feedback, Confidence)};
-    G --> H[DB: `INSERT` result into `grading_results` table];
-    H --> I[UI: Display results using `st.data_editor`];
-    I --> J[End: User views grades];
+    A[Start: User clicks Grade] --> B[Backend Logic (2_grading_result.py)]
+    B --> C[Fetch submissions from student_data]
+    B --> D[Fetch rubric from prof_data]
+    C --> E[AI Grading Engine]
+    D --> E
+    E --> F[Agentic Pipeline]
+    F --> G[Grading Result (score, feedback, confidence)]
+    G --> H[Insert into grading_results]
+    H --> I[Streamlit UI updates]
+    I --> J[Professor reviews grades]
 ```
 
 **Description:**
@@ -91,48 +91,48 @@ This diagram provides a detailed look inside the AI Grading Engine itself, showi
 
 ```mermaid
 graph TD
-    A[Grading Job Received] --> B{Router};
-    B --> |Assignment type is 'text'| C{Multi-Agent Grader};
-    B --> |Assignment type is 'code'| D{Code Grader};
+    A[Grading Job Received] --> B[Router]
+    B --> |text| C[Multi-Agent Grader]
+    B --> |code| D[Code Grader]
 
     subgraph Code Grading Sandbox
-        D --> D1[1. Create Dockerfile with student code & unittests];
-        D1 --> D2[2. `docker build` & `docker run`];
-        D2 --> D3[3. Capture stdout from unittest results];
-        D3 --> D4[4. Parse results to get objective score];
-        D4 --> D5{5. LLM Call for Qualitative Feedback};
-        D5 --> D6[Final Code Grade];
+        D --> D1[Create Dockerfile + unittests]
+        D1 --> D2[docker build & docker run]
+        D2 --> D3[Capture unittest stdout]
+        D3 --> D4[Parse score]
+        D4 --> D5[LLM feedback]
+        D5 --> D6[Final code grade]
     end
 
     subgraph Multi-Agent Text Grading
-        C --> C1{1. RAG Module};
-        C1 --> C2[Query FAISS Vector Store for similar past corrections];
-        C2 --> C3[Retrieve context];
-        
-        C --> C4{2. Concurrent Agent Spawner (`ThreadPoolExecutor`)};
+        C --> C1[RAG retrieval]
+        C1 --> C2[Similar past corrections]
+        C2 --> C3[Context bundle]
+
+        C --> C4[Concurrent agents]
         C3 --> C4
-        C4 --> |Job 1| Agent1[Grader Agent α (Strict)];
-        C4 --> |Job 2| Agent2[Grader Agent β (Lenient)];
-        C4 --> |Job N| AgentN[Grader Agent γ (By-the-book)];
+        C4 --> Agent1[Agent α]
+        C4 --> Agent2[Agent β]
+        C4 --> AgentN[Agent γ]
 
         subgraph Single Agent Execution
-            Agent1 --> P1{Prompt Builder};
-            P1 -- "Submission, Rubric, Persona, RAG Context" --> L1[LangChain LLM Call];
-            L1 --> R1[Agent α Result (Score, Feedback)];
+            Agent1 --> P1[Prompt Builder]
+            P1 --> L1[LLM call]
+            L1 --> R1[Score + feedback]
         end
 
-        R1 --> C5{3. Aggregator};
-        Agent2 --> C5;
-        AgentN --> C5;
+        R1 --> C5[Aggregator]
+        Agent2 --> C5
+        AgentN --> C5
 
-        C5 --> C6[Calculate score (mean/median) & confidence (variance)];
-        C5 --> C7{4. Meta-Agent LLM Call to synthesize all feedback};
-        C6 --> C8[Final Text Grade];
-        C7 --> C8[Final Text Grade];
+        C5 --> C6[Mean/median + confidence]
+        C5 --> C7[Meta-agent synthesis]
+        C6 --> C8[Final text grade]
+        C7 --> C8
     end
 
-    D6 --> Z[End: Return Result];
-    C8 --> Z[End: Return Result];
+    D6 --> Z[Return Result]
+    C8 --> Z
 ```
 
 **Description:**

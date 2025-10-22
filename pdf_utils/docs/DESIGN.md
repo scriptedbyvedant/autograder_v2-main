@@ -116,25 +116,25 @@ For a production-grade system, migrating from a local, monolithic architecture t
 ```mermaid
 graph TD
     subgraph User & CDN
-        A[User's Browser] --> B(Cloud CDN & Load Balancer)
+        A[User Browser] --> B[Cloud CDN & Load Balancer]
     end
-    
+
     subgraph Application Services
-        B --> C{Cloud Run (Frontend)}
-        B --> D{Cloud Functions (Backend API)}
+        B --> C[Cloud Run Frontend]
+        B --> D[Cloud Functions Backend API]
     end
 
     subgraph Data & Storage
         C --> E[Cloud SQL for PostgreSQL]
         D --> E
-        D --> F[Cloud Storage for PDF & Data Files]
+        D --> F[Cloud Storage (PDF Assets)]
     end
 
     subgraph AI Platform
-        D --> G{Vertex AI Pipelines}
-        G --> H(Vertex AI Model Garden / Custom Models)
-        G --> I(Vertex AI Vector Search)
-        G --> J(Secure Code Execution in Cloud Run Jobs)
+        D --> G[Vertex AI Pipelines]
+        G --> H[Vertex AI Model Garden]
+        G --> I[Vertex AI Vector Search]
+        G --> J[Cloud Run Jobs for Code Execution]
     end
 
     C --> F
