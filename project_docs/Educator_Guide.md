@@ -1,118 +1,100 @@
+# Educator's Guide to LLM AutoGrader
 
-# The Educator's Guide to the Automated Grading Framework
+This guide walks through the workflow supported by the current codebase and highlights best practices for reliable grading sessions.
 
 ---
 
 ## 1. Purpose & Scope
 
-**Goal:** This guide serves as the primary onboarding and reference document for educators using the Automated Grading Framework. Its purpose is to empower you to efficiently and effectively grade student assignments, understand the AI's reasoning, and improve its performance over time.
-
-**Scope:** This document covers the complete user workflow, from uploading assignment materials and grading student submissions to leveraging advanced features like model fine-tuning. It is not intended to be a deep technical reference for developers.
+The platform assists professors with rubric-based grading and feedback generation. You retain full control: all scores and comments can be inspected, edited, and exported before releasing them to students.
 
 ---
 
 ## 2. Getting Started
 
-### 2.1. Overview
+### 2.1 Requirements
 
-The Automated Grading Framework is a tool designed to assist you with the grading process. It uses a sophisticated AI Grading Engine to analyze student submissions, provide a score based on your rubric, and generate detailed, constructive feedback. 
+* An account created via the **Professor Authentication** page (`pages/0_auth.py`).
+* A PDF containing the assignment questions, ideal answers, and rubric.
+* Student submissions in PDF form or an ILIAS export ZIP.
+* A running Ollama service (`ollama serve`) with the model configured in `.env` (default `mistral`).
 
-Crucially, **you are always in control**. The framework acts as your expert assistant, and you have the final say on every grade. The system is built on a **Human-in-the-Loop** philosophy, meaning your corrections are not only saved but are used to make the AI smarter and more aligned with your standards over time.
+### 2.2 Logging In
 
-### 2.2. Prerequisites
-
-Before you begin, please ensure you have the following:
-
-*   **Professor-level access credentials** to log into the application.
-*   **Assignment materials in PDF format.** This includes:
-    *   A document containing the assignment questions, the ideal answers, and a detailed grading rubric.
-    *   The students' submissions, also in PDF format.
+1. Open the application and navigate to the **Professor Authentication** page.
+2. Register with your institutional email (domain checks are enforced) if you are a new user.
+3. Log in; your profile will appear in the sidebar and Streamlit will remember your session until you sign out or refresh.
 
 ---
 
-## 3. Step-by-Step Walkthrough
+## 3. Core Workflow
 
-This section will guide you through the three main phases of using the application.
+### Phase 1 – Upload Assignment Data
 
-### Phase 1: Uploading Your Assignment
+1. Navigate to **Upload Assignment Data for Grading**.
+2. Upload the professor PDF. The system extracts questions, ideal answers, and rubric items. Fix structural issues in the source PDF if the parser reports missing sections.
+3. Upload student submissions (PDF or ILIAS ZIP). Validation ensures every student has content for each question.
+4. When both uploads succeed, click **Start Grading**. Streamlit switches to the grading results page, carrying the parsed data in session state.
 
-First, you need to provide the system with the context for the assignment.
+> **Tip:** Keep the browser tab open while grading. Refreshing the page clears the temporary session data and you would need to re-upload.
 
-1.  **Navigate** to the **"Upload Data"** page from the main menu.
-2.  **Upload the Professor's Document:** Under the "Upload Professor Data" section, upload the PDF that contains your questions, ideal answers, and rubric.
-3.  **Upload Student Submissions:** Under the "Upload Student Data" section, upload one or more student answer PDFs.
-4.  **Verification:** The system will confirm once the files are successfully parsed and stored.
+### Phase 2 – Review & Adjust Grades
 
-> #### 📌 **Best Practice: PDF Formatting**
-> For the best results, use PDFs where the text is machine-readable (i.e., not a scanned image). This allows the AI to parse the content with the highest accuracy. If you have a very long assignment document, consider splitting it into smaller files for easier processing.
+1. The results page shows a table of scores per student and question. Select a specific student and question from the dropdowns to see details.
+2. Review the rubric breakdown. Each criterion has a slider limited to the maximum rubric points.
+3. Read or edit the generated feedback in the text area on the right.
+4. (Optional) Click **💡 Explanation** to generate a rubric-aligned justification for the current scores.
+5. Press **Save changes** to persist your edits. This updates the database and logs the change.
 
-### Phase 2: Grading and Review (The Human-in-the-Loop)
+### Phase 3 – Export & Share
 
-This is where the magic happens. The AI will grade the submissions, and you will review them.
-
-1.  **Navigate** to the **"Grading Result"** page.
-2.  **Initiate Grading:** Select the course and assignment you wish to grade and click the **"Start Grading"** button.
-3.  **Review the Results:** After a few moments, the results will appear in an interactive table. For each student, you will see:
-    *   The question and their answer.
-    *   The AI-generated score (`old_score`) and feedback (`old_feedback`).
-4.  **Make Corrections:** If you disagree with the AI, simply **click into the table cell** and edit the score or feedback directly. The table works just like a spreadsheet.
-5.  **Save Corrections:** When you modify a grade, your correction is saved automatically as `new_score` and `new_feedback`. 
-
-> #### ✨ **How Your Corrections Help**
-> Every correction you make is used in two powerful ways:
-> 1.  **For Consistency (RAG):** Your correction is immediately stored in the system's "memory" (a Vector Store). When the AI grades the *next* student, it looks at this memory to see how you graded similar answers, helping it stay consistent.
-> 2.  **For Long-Term Improvement:** Your corrections become the training data for making the AI model itself better (see Phase 3).
-
-### Phase 3 (Advanced): Improving the AI with the Finetuning Assistant
-
-After you have graded several assignments and made corrections, you can use that data to create a new, smarter version of the AI model that is customized to your specific course and standards.
-
-1.  **Navigate** to the **"Model Finetuning Assistant"** page.
-2.  **Step 1: Generate Data:** Click the **"Generate Training Data"** button. The system will package all the corrections you've made into a single `training_dataset.jsonl` file. A download button will appear.
-3.  **Step 2: Train in Colab:** 
-    *   Follow the link to open Google Colab and set the runtime to `T4 GPU` as instructed.
-    *   Copy the provided Python script into a Colab cell.
-    *   Upload your `training_dataset.jsonl` file to the Colab environment.
-    *   Run the cell. The training will take 15-20 minutes.
-4.  **Step 3: Deploy Your Model:**
-    *   Once training is complete, a `trained_adapters.npz` file will appear in Colab. Download it.
-    *   Move this file into the `training/` folder of this application.
-    *   **Restart the application.**
-
-That's it! The application will automatically detect and use your new, fine-tuned model for all future grading tasks.
+* Use the **Download Feedback** section to export a ZIP of individualized PDF reports (generated via ReportLab).
+* Share a specific grading result with a colleague by entering their email; they can access it through the **Collaboration Center** page.
+* Visit the **Analytics Dashboard** to explore trends across assignments, filter results, or download CSV/PDF reports.
 
 ---
 
-## 4. Troubleshooting & FAQ
+## 4. Troubleshooting
 
-*   **Q: The PDF upload failed or the text looks jumbled. Why?**
-    *   **A:** This usually happens if the PDF is a scanned image of a document. Please ensure your PDFs are created from a text source (e.g., "Save as PDF" from a word processor). See the Best Practice tip in Phase 1.
-
-*   **Q: The AI's grade seems completely wrong. What should I do?**
-    *   **A:** Simply correct it in the results table. The system is designed for this! Your correction provides a valuable data point that helps the AI learn.
-
-*   **Q: How can I trust the AI is being fair and consistent?**
-    *   **A:** The system uses two key features for this: the **Multi-Agent System**, where multiple AI agents debate to reach a consensus, and **Retrieval Augmented Generation (RAG)**, which constantly refers to your past corrections to maintain consistency. The final authority, however, is always you.
-
-*   **Q: I deployed a new fine-tuned model but I want to revert to the original. How?**
-    *   **A:** Simply delete the `trained_adapters.npz` file from the `training/` directory and restart the application. The system will revert to the base model.
+| Issue | Resolution |
+| --- | --- |
+| "Professor PDF missing Q1" error | Confirm each question header uses `Q1`, `Q2`, etc., followed by rubric sections the parser can detect. |
+| Student validation failed | Ensure each student answer file contains labelled sections (e.g., `A1:`). Supplying clean PDFs reduces parsing errors. |
+| Ollama connection error | Start `ollama serve` and verify `OLLAMA_HOST` in `.env` matches the service URL. |
+| Changes not saving | Confirm you clicked **Save changes** after adjusting sliders or feedback. Refreshing the page without saving discards edits. |
+| Empty analytics charts | Ensure grading results exist for the selected filters; otherwise reset filters to `All`. |
 
 ---
 
-## 5. Additional Resources
+## 5. Frequently Asked Questions
 
-For users interested in the underlying technical details of the framework, the following documents are available in the project repository:
+**Can I rerun grading after editing the rubric?**
+> Yes. Re-upload the updated professor PDF and student submissions, then start a new grading run. Previous results remain stored in the database under their original assignment identifiers.
 
-*   `ARCHITECTURE.md`: A high-level overview of the system components.
-*   `DESIGN.md`: A detailed technical design of the software.
-*   `DATA_FLOW.md`: A set of diagrams illustrating how data moves through the application.
+**Does manual feedback influence future grading?**
+> Not yet. Corrections are stored for auditing but the retrieval store is not updated automatically in this version. Future releases will incorporate corrections into the vector store and fine-tuning workflow.
+
+**Is there an in-app fine-tuning assistant?**
+> No. Earlier documentation referenced a `pages/3_fine_tuning.py` helper, but it is not part of this repository snapshot. Fine-tuning currently requires a manual pipeline outside the app.
 
 ---
 
-## Next Steps for This Document
+## 6. Best Practices
 
-As a living document, this guide will evolve with the product. Based on anticipated user feedback, future versions should include:
+* Use machine-readable PDFs (exported from word processors) to maximize parsing accuracy.
+* Keep assignment identifiers (`assignment_no`, `course`, `semester`) consistent; they serve as keys in analytics and sharing features.
+* After grading, take a moment to verify a few exported PDFs to ensure formatting meets your expectations.
+* Record major grading decisions or rubric tweaks in `logs/` for future reference or to share with collaborators.
 
-*   **A section on interpreting the Analytics Dashboard.**
-*   **Specific guidance for grading Code Assignments**, including how to write effective `unittest` cases.
-*   **A more detailed "Tips and Tricks" section** for writing effective rubrics that the AI can easily understand.
+---
+
+## 7. Future Enhancements (Roadmap)
+
+The following educator-facing features are planned but not yet implemented:
+
+* Automatic incorporation of manual corrections into retrieval context.
+* Streamlit-based fine-tuning assistant with guided Colab notebook.
+* Student-facing portal for viewing released grades.
+* Support for additional modalities (images, tables) beyond the current text-centric workflow.
+
+Community contributions are welcome—see the main README for guidelines.

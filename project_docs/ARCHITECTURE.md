@@ -1,151 +1,112 @@
-
 # Application Architecture
 
-This document provides a detailed overview of the technical architecture of the automated grading application. It is intended for developers and system administrators.
+This document reflects the current codebase of the LLM AutoGrader project. It explains how the Streamlit frontend, grading engine, and persistence layer work together today.
 
 ---
 
 ## 1. High-Level Overview
 
-The application is a multi-tiered system composed of a web-based frontend, a robust backend with a relational database, and a sophisticated AI-powered grading engine. 
-
 ```mermaid
 graph TD
-    A[Browser] --> B{Streamlit Frontend};
-    B --> C{Backend Server};
-    C --> D[PostgreSQL Database];
-    C --> E{AI Grading Engine};
-    E --> F[LLM APIs / Local Models];
-    E --> G[Vector Store];
-
-    subgraph User Interface
-        B
-    end
-
-    subgraph Core Logic & Data
-        C
-        D
-    end
-
-    subgraph AI Processing
-        E
-        F
-        G
-    end
+    A[Browser] --> B(Streamlit Frontend)
+    B --> C(Session State)
+    B --> D(Grading Engine)
+    D --> E(Ollama / LLM Backends)
+    D --> F(Multimodal Vector Store)
+    B --> G(Postgres Handler)
+    G --> H(PostgreSQL: grading_results, grading_corrections, result_shares)
 ```
 
-*   **Frontend:** A multi-page Streamlit application provides the user interface for professors and teaching assistants.
-*   **Backend:** A Python backend orchestrates the application logic, handling user requests, database interactions, and calls to the grading engine.
-*   **Database:** A PostgreSQL database stores all persistent data, including user information, assignment details, student submissions, and grading results.
-*   **AI Grading Engine:** A modular engine that leverages Large Language Models (LLMs) to perform the grading. It includes specialized modules for different types of assignments.
-*   **Vector Store:** A FAISS-based vector database stores embeddings of past grading decisions to provide historical context (RAG).
+* **Streamlit Frontend:** Multi-page UI that handles authentication, data upload, grading review, collaboration, and analytics.
+* **Session State:** Temporary in-memory store (per user session) that keeps parsed professor data, student submissions, and grading results until they are persisted.
+* **Grading Engine:** Python modules under `grader_engine/` that normalize inputs, call Ollama-hosted models, and compute rubric-aligned scores.
+* **Vector Store:** An in-memory `MultimodalVectorStore` (Sentence Transformers or TF-IDF fallback) used for lightweight retrieval-augmented context during grading.
+* **Database:** PostgreSQL tables managed via `database/postgres_handler.py` store finalized grading outputs, manual corrections, and sharing metadata.
 
 ---
 
 ## 2. Frontend (Streamlit Application)
 
-The frontend is built using Streamlit and is organized into a multi-page application structure.
+### 2.1 Page Structure
 
-### **2.1. Directory Structure**
+* `app.py` – Root page with platform overview.
+* `pages/0_auth.py` – Professor registration and login backed by PostgreSQL.
+* `pages/1_upload_data.py` – Upload professor rubric PDF and student submissions (PDF or ILIAS ZIP). Parsed content is normalized and saved in `st.session_state`.
+* `pages/2_grading_result.py` – Runs automated grading, displays rubric breakdowns, allows manual edits, and exports feedback packages.
+* `pages/3_collaboration_center.py` – Manage sharing of individual grading results with colleagues.
+* `pages/3_dashboard.py` – Analytics portal powered by pandas and Plotly.
+* `5_my_profile.py` – Profile management helper (optional in navigation).
 
-*   `app.py`: The main entry point of the Streamlit application. It handles routing and global configuration.
-*   `pages/`: This directory contains the individual pages of the application, such as:
-    *   `0_auth.py`: User authentication.
-    *   `1_upload_data.py`: Interface for professors to upload assignment PDFs and for students to submit their work.
-    *   `2_grading_result.py`: Displays the results of the grading process.
-    *   `3_fine_tuning.py`: The user-friendly interface for fine-tuning the model.
+### 2.2 Session-Scoped Data Flow
 
-### **2.2. Authentication and Session Management**
-
-Authentication is managed through the `auth` module. User session data, including login status and user roles, is stored in `st.session_state`. This ensures that sensitive pages are protected and that the application context is maintained as the user navigates between pages.
-
----
-
-## 3. Backend and Database
-
-The backend logic is tightly integrated with the PostgreSQL database, which serves as the single source of truth.
-
-### **3.1. Database Schema**
-
-The database consists of several key tables:
-
-*   `users`: Stores user credentials and roles (e.g., professor, assistant).
-*   `prof_data`: Contains the data uploaded by professors, including the course, assignment number, questions, ideal answers, and grading rubrics.
-*   `student_data`: Stores student submissions, linked to a specific assignment.
-*   `grading_results`: This is the central table for storing the output of the grading engine. It includes the original student answer, the AI-generated score and feedback (`old_feedback`), and any human-in-the-loop corrections (`new_feedback`, `new_score`).
-
-### **3.2. Data Handler (`database/postgres_handler.py`)**
-
-All database interactions are abstracted away by the `PostgresHandler` class. This class provides a standardized interface for executing queries (SELECT, INSERT, UPDATE) and managing connections. This centralized approach ensures consistency and simplifies database management.
+During uploads, professor metadata and per-student answers are kept only in `st.session_state`. No ingestion tables (`prof_data`, `student_data`) exist in the database yet; persistence happens later when grading results are stored.
 
 ---
 
-## 4. The AI Grading Engine (`grader_engine/`)
+## 3. Persistence Layer
 
-This is the core of the application where the AI-powered grading takes place. 
+All long-term storage is handled through `database/postgres_handler.py`, which initializes and interacts with the following tables:
 
-```mermaid
-graph TD
-    A[Request from Backend] --> B{Router};
-    B --> |Text| C[Text Grader];
-    B --> |Code| D[Code Grader];
-    B --> |Multi-Agent| E[Multi-Agent Grader];
-    B --> |Multimodal| F[Multimodal Grader];
+* `grading_results` – Stores AI-generated scores, feedback, serialized student answers, language, and metadata.
+* `grading_corrections` – Audit trail of manual overrides made from the grading results page.
+* `result_shares` – Mapping of which professor shared which grading result with which colleague.
 
-    C --> G{RAG Integration};
-    E --> G;
-    
-    G --> H[Vector Store];
-    C --> I{Explainability Module};
-    E --> I;
-
-    I --> J[Final Grade & Feedback];
-```
-
-### **4.1. Router (`router.py`)**
-
-The `Router` is the main entry point for the grading engine. It inspects the assignment type (e.g., text, code, multimodal) and directs the request to the appropriate specialized grader.
-
-### **4.2. Multi-Agent Grader (`multi_agent.py`)**
-
-To improve reliability and reduce bias, the system employs a multi-agent consensus mechanism:
-
-1.  **Agent Roles:** Multiple LLM agents are instantiated with slightly different personas (e.g., a "strict" grader, a "lenient" grader, a "by-the-book" grader).
-2.  **Concurrent Grading:** These agents grade the same submission in parallel using `concurrent.futures`.
-3.  **Consensus:** The scores and feedback from each agent are collected. The final score is typically the mean or median of the agents' scores, and the variance is used as a confidence metric.
-4.  **Final Review:** A final "meta-agent" reviews the collected feedback and synthesizes it into a single, high-quality explanation.
-
-### **4.3. Code Grader (`code_grader.py`)**
-
-The code grader provides a secure and comprehensive way to evaluate programming assignments:
-
-1.  **Sandboxed Execution:** Student code is executed within a secure, isolated Docker container to prevent any potential security risks.
-2.  **Unit Testing:** The code is run against a set of predefined `unittest` cases. The results (pass/fail) form the basis of the objective score.
-3.  **Qualitative Feedback:** An LLM analyzes the student's code, along with the unit test results, to provide qualitative feedback on code style, efficiency, best practices, and potential areas for improvement.
-
-### **4.4. RAG Integration (`rag_integration.py`)**
-
-To ensure consistency over time, the grading engine uses Retrieval Augmented Generation (RAG):
-
-1.  **Vector Store:** When a human-in-the-loop correction is made, the grading context (question, student answer, corrected feedback) is embedded and stored in a FAISS vector store.
-2.  **Contextual Retrieval:** When grading a new submission, the engine queries the vector store to find the most similar previously graded examples.
-3.  **Prompt Injection:** These historical examples are injected into the LLM prompt, providing valuable context that helps the model "remember" how similar cases were graded in the past.
-
-### **4.5. Explainability Module (`explainer.py`)**
-
-This module is responsible for generating the detailed, rubric-aligned justifications for the final score. It takes the grading results and structures them into a clear, easy-to-understand format that explains which criteria were met and why.
+Connection management uses a simple `psycopg2` connection pool. Inserts and updates are executed synchronously when grading completes or when a professor saves edits.
 
 ---
 
-## 5. Model Management & Finetuning (`training/`)
+## 4. Grading Engine (`grader_engine/`)
 
-The application is designed to allow for continuous improvement of the AI models through a user-friendly fine-tuning process.
+* `text_grader.py` – Builds rubric-aligned prompts and calls Ollama (default `mistral`) twice. Results are interpreted with a structured output parser and normalized to rubric scores.
+* `math_grader.py` – Lightweight LaTeX-aware scorer for numeric/analytical questions.
+* `code_grader.py` – Executes Python code via subprocess in a temporary directory (no Docker). Supports rubric-weighted unit test scoring and simple fallbacks (syntax check and smoke run).
+* `multi_agent.py` – Provides the `grade_block` entry point. It classifies the question, gathers RAG context, calls the appropriate grader, and fuses duplicate runs to estimate disagreement. Despite the filename, grading currently performs sequential duplicate evaluations rather than true concurrent multi-agent consensus.
+* `multimodal_rag.py` – Implements the in-memory vector store with tiered backends (Sentence Transformers, TF-IDF, or no-op).
 
-### **5.1. Finetuning Workflow**
+---
 
-The new `pages/3_fine_tuning.py` page orchestrates this process:
+## 5. Retrieval-Augmented Grading
 
-1.  **Data Generation:** A user clicks a button to generate a `training_dataset.jsonl` file. The backend queries the `grading_results` table for all human-corrected examples and formats them into the required JSONL structure.
-2.  **Colab Training:** The user uploads this dataset to Google Colab and runs a provided Python script (`training/colab_finetune.py`). This script handles the installation of dependencies, data preparation, and the MLX-based fine-tuning process.
-3.  **Adapter Deployment:** The training script produces a `trained_adapters.npz` file. The user downloads this file and places it in the `training/` directory of the application.
-4.  **Automatic Loading:** On startup, the application checks for the existence of `trained_adapters.npz`. If found, it automatically loads the fine-tuned LoRA adapters, enhancing the base model with the user's specific corrections.
+The vector store is seeded during professor upload (`pages/1_upload_data.py`) with question text, normalized ideal answers, and rubric items. During grading, `grade_block` pulls up to `k` similar items for additional context.
+
+* Embeddings are kept in memory for the active Streamlit session only.
+* There is no automatic persistence to FAISS/Chroma or background rebuild after manual corrections.
+* If Sentence Transformers fail to load, the store transparently falls back to TF-IDF similarity or a no-op mode.
+
+---
+
+## 6. Human-in-the-Loop Editing
+
+On the grading results page, professors adjust rubric sliders and feedback text areas. Pressing **Save changes** persists the new totals and feedback to `grading_results` and logs the edit in `grading_corrections`. A correction does not currently trigger a vector-store update.
+
+Sharing options allow a stored result to be made available to another professor via the `result_shares` table.
+
+---
+
+## 7. Analytics and Reporting
+
+`pages/3_dashboard.py` aggregates `grading_results` and shared items into pandas DataFrames and renders:
+
+* Student performance summaries and quadrant analysis.
+* Question-level distributions and difficulty trends.
+* Calendar heatmaps of grading activity.
+* Export options (CSV download, PDF summary via ReportLab).
+
+The dashboard relies on columns populated by the grading workflow (course, semester, assignment number, language, etc.). Missing metadata defaults to "Unknown" for plotting.
+
+---
+
+## 8. Authentication & Profile Management
+
+* Registration enforces university email domains and stores bcrypt hashes in a `professors` table (created manually alongside the shipped schema).
+* Successful login stores the professor profile in `st.session_state['logged_in_prof']`.
+* Profile components use `PostgresHandler` helper methods to manage subjects, sessions, and password updates.
+
+---
+
+## 9. Known Gaps & Future Enhancements
+
+* Database ingestion tables (`prof_data`, `student_data`) are not yet implemented; all parsing happens in memory.
+* True multi-agent grading (parallel personas with consensus) is a roadmap item; the current system performs redundant runs for stability.
+* Manual corrections do not refresh the retrieval store. Extending `rag_utils.py` to append corrections is a planned improvement.
+* A Streamlit-based fine-tuning assistant and `training/` workflow are not part of the current repository snapshot.

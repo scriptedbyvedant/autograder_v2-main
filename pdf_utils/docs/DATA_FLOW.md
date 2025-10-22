@@ -13,30 +13,32 @@ This pipeline describes how course materials (from professors) and student submi
 sequenceDiagram
     participant Prof as Professor
     participant Stu as Student
-    participant UI as Streamlit UI (`st.file_uploader`)
-    participant Parser as PDF Parser (`PyMuPDF`, `re`)
-    participant Backend as Backend Logic (`1_upload_data.py`)
+    participant UI as Streamlit UI (st.file_uploader)
+    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Backend as Backend Logic (1_upload_data.py)
     participant DB as PostgresHandler
     participant PG as PostgreSQL Database
 
-    box LightCyan Professor Workflow
-        Prof->>UI: Uploads Professor PDF (Questions, Rubric)
+    rect rgb(224,255,255)
+        Note over Prof,DB: Professor workflow
+        Prof->>UI: Uploads professor PDF (questions, rubric)
         UI->>Backend: Passes file bytes
         Backend->>Parser: Extracts raw text from PDF
         Parser-->>Backend: Returns unstructured text
-        Backend->>Parser: Parses text with Regex for structured content
+        Backend->>Parser: Parses text for structured content
         Parser-->>Backend: Returns structured data (JSON)
-        Backend->>DB: Calls `execute_query` with INSERT for `prof_data`
-        DB->>PG: Executes SQL INSERT statement
+        Backend->>DB: Calls execute_query INSERT for prof_data
+        DB->>PG: Executes SQL insert
     end
 
-    box LightYellow Student Workflow
-        Stu->>UI: Uploads Submission PDF
+    rect rgb(255,250,205)
+        Note over Stu,DB: Student workflow
+        Stu->>UI: Uploads submission PDF
         UI->>Backend: Passes file bytes
         Backend->>Parser: Extracts raw text from PDF
         Parser-->>Backend: Returns unstructured text
-        Backend->>DB: Calls `execute_query` with INSERT for `student_data`
-        DB->>PG: Executes SQL INSERT statement
+        Backend->>DB: Calls execute_query INSERT for student_data
+        DB->>PG: Executes SQL insert
     end
 ```
 
@@ -62,16 +64,16 @@ This diagram shows the end-to-end process when a professor initiates a grading j
 
 ```mermaid
 graph TD
-    A[Start: User clicks "Grade" in UI] --> B{Backend Logic (`2_grading_result.py`)};
-    B --> C[DB: Fetch submissions from `student_data`];
-    B --> D[DB: Fetch rubric from `prof_data`];
-    C --> E{AI Grading Engine};
-    D --> E{AI Grading Engine};
-    E --> F(See Agentic Pipeline for details);
-    F --> G{Grading Result (Score, Feedback, Confidence)};
-    G --> H[DB: `INSERT` result into `grading_results` table];
-    H --> I[UI: Display results using `st.data_editor`];
-    I --> J[End: User views grades];
+    A[Start: User clicks Grade in UI] --> B{Backend Logic (2_grading_result.py)}
+    B --> C[DB: Fetch submissions from student_data]
+    B --> D[DB: Fetch rubric from prof_data]
+    C --> E{AI Grading Engine}
+    D --> E{AI Grading Engine}
+    E --> F([See Agentic Pipeline for details])
+    F --> G{Grading Result (Score, Feedback, Confidence)}
+    G --> H[DB: INSERT result into grading_results table]
+    H --> I[UI: Display results using st.data_editor]
+    I --> J[End: User views grades]
 ```
 
 **Description:**
