@@ -64,6 +64,7 @@ The platform combines a multi-page Streamlit interface, a PostgreSQL persistence
 │   └── test_grading_validation.py
 ├── schema.sql               # Baseline grading tables
 ├── requirements.txt
+├── project_docs/            # Architecture, data flow, evaluation, and educator guides
 └── validate_zip.py          # CLI validation for LMS ZIP uploads
 ```
 
@@ -228,11 +229,13 @@ pytest
 - **Authentication fails** – Verify the `professors` table exists and that the email ends with `@stud.hs-heilbronn.de` (validated in the UI).
 
 ## Further Documentation
-Extended design notes, data-flow diagrams, and educator guidance are available under `pdf_utils/docs/`:
+Extended design notes, data-flow diagrams, evaluation summaries, and educator guidance live in `project_docs/`:
 - `ARCHITECTURE.md`
 - `DATA_FLOW.md`
 - `DESIGN.md`
+- `EVALUATION.md`
 - `Educator_Guide.md`
+- `project_report.md`
 
 ## Open Source Credits
 LLM AutoGrader is only possible thanks to the maintainers of the following open source projects (grouped by how we use them):
