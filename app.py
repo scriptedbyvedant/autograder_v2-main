@@ -61,7 +61,7 @@ with row1[0]:
     st.markdown("""
     <div class="feature-card">
         <h3>📤 Smart PDF Upload</h3>
-        <p>Extract structured Q&A from professor and student PDFs. Supports multi-subject assignments.</p>
+        <p>Extract structured Q&A from lecturer and student PDFs. Supports multi-subject assignments.</p>
     </div>
     """, unsafe_allow_html=True)
 with row1[1]:

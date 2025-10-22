@@ -308,7 +308,7 @@ def seed_multimodal_rag_from_professor(prof_info: Dict, prof_content_blocks: Lis
 st.set_page_config(page_title="Upload Data for Grading", layout="wide")
 st.title("📄 Upload Assignment Data for Grading")
 
-prof_pdf = st.file_uploader("📋 Professor PDF", type=["pdf"])
+prof_pdf = st.file_uploader("📋 Lecturer PDF (use existing 'Professor' template)", type=["pdf"])
 submission_file = st.file_uploader("📝 Student Submissions (PDF or ILIAS ZIP)", type=["pdf", "zip"])
 language = st.selectbox("Grading Language", ["English", "German", "Spanish"])
 st.session_state["answer_language"] = language
@@ -331,14 +331,14 @@ if st.button("🚦 Start Grading", disabled=not (prof_pdf and submission_file), 
 
     # ---- Professor PDF ----
     try:
-        with st.spinner("Processing Professor PDF..."):
+        with st.spinner("Processing Lecturer PDF (expecting 'Professor' headings)..."):
             pdf_bytes = prof_pdf.getvalue()
             prof_content_blocks = extract_multimodal_content_from_pdf(BytesIO(pdf_bytes))
             prof_text = "\n".join([b['content'] for b in prof_content_blocks if b['type'] == 'text'])
             prof_info = parse_professor_pdf(prof_text)
 
             if not prof_info.get("questions"):
-                st.error("Professor PDF missing Q1:, etc.")
+                st.error("Lecturer PDF missing Q1:, etc. (ensure the uploaded document keeps the original 'Professor' labels)")
                 st.stop()
 
             # 🔧 normalize for UI + grader
@@ -348,12 +348,12 @@ if st.button("🚦 Start Grading", disabled=not (prof_pdf and submission_file), 
 
             if multimodal_vs_instance:
                 seed_multimodal_rag_from_professor(prof_info, prof_content_blocks, multimodal_vs_instance)
-                st.write("✅ Professor PDF processed and RAG seeded.")
+                st.write("✅ Lecturer PDF processed and RAG seeded.")
             else:
-                st.write("✅ Professor PDF processed (RAG feature disabled).")
+                st.write("✅ Lecturer PDF processed (RAG feature disabled).")
 
     except Exception as e:
-        st.error(f"❌ Error processing Professor PDF: {e}")
+        st.error(f"❌ Error processing Lecturer PDF: {e}")
         st.stop()
 
     # ---- Student submissions (ZIP unchanged, single-PDF updated) ----

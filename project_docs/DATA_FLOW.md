@@ -62,13 +62,13 @@ This diagram shows the end-to-end process when a professor initiates a grading j
 
 ```mermaid
 graph TD
-    A[Start: User clicks Grade] --> B[Backend Logic 2_grading_result.py]
+    A[Start: User clicks Grade] --> B(Backend Logic 2_grading_result.py)
     B --> C[Fetch submissions from student_data]
     B --> D[Fetch rubric from prof_data]
     C --> E[AI Grading Engine]
     D --> E
     E --> F[Agentic Pipeline]
-    F --> G[Grading Result (score, feedback, confidence)]
+    F --> G(Grading Result score, feedback, confidence)
     G --> H[Insert into grading_results]
     H --> I[Streamlit UI updates]
     I --> J[Professor reviews grades]

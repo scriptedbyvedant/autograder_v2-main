@@ -2,16 +2,6 @@ import streamlit as st
 import bcrypt
 import psycopg2
 
-# ---- SUBJECT AND SESSION OPTIONS ----
-SUBJECT_OPTIONS = [
-    "AI Fundamentals","Einführung in KI" ,"Data Structures", "Algorithms",
-    "Machine Learning", "Deep Learning", "Computer Networks",
-    "Database Systems", "Software Engineering", "Operating Systems",
-    "Discrete Mathematics", "Statistics", "Natural Language Processing",
-    "Cybersecurity", "Cloud Computing", "Image Processing"
-]
-SESSION_OPTIONS = ["Summer", "Winter"]
-
 # --- DATABASE CONNECTION ---
 def get_conn():
     return psycopg2.connect(
@@ -20,7 +10,7 @@ def get_conn():
     )
 
 # --- REGISTRATION FUNCTION ---
-def register_user(university_email, username, password, subjects, sessions):
+def register_user(university_email, username, password):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM professors WHERE university_email=%s OR username=%s", (university_email, username))
@@ -28,11 +18,9 @@ def register_user(university_email, username, password, subjects, sessions):
         conn.close()
         return False, "Username or University Email already registered."
     hash_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-    subject_str = ', '.join(subjects)
-    session_str = ', '.join(sessions)
     cur.execute(
         "INSERT INTO professors (university_email, username, password_hash, subjects, sessions) VALUES (%s,%s,%s,%s,%s)",
-        (university_email, username, hash_pw.decode(), subject_str, session_str)
+        (university_email, username, hash_pw.decode(), '', '')
     )
     conn.commit()
     conn.close()
@@ -53,7 +41,7 @@ def check_login(username, password):
     return None
 
 # --- STREAMLIT PAGE CONFIG & STYLING ---
-st.set_page_config(page_title="Professor Login", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Lecturer Login", page_icon="🎓", layout="centered")
 
 st.markdown("""
     <style>
@@ -70,8 +58,8 @@ st.markdown("""
 col1, col2, col3 = st.columns([1,2,1])
 with col2:
     st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-    st.markdown('<div class="auth-title">Professor Authentication</div>', unsafe_allow_html=True)
-    st.markdown('<div class="auth-help">Log in to access grading & analytics. Register below if you are a new professor.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="auth-title">Lecturer Authentication</div>', unsafe_allow_html=True)
+    st.markdown('<div class="auth-help">Log in to access grading & analytics. Register below if you are a new lecturer (existing PDFs still use the "Professor" heading).</div>', unsafe_allow_html=True)
 
     tab = st.tabs(["🔑 Login", "📝 Register"])
 
@@ -99,20 +87,14 @@ with col2:
             university_email = st.text_input("University Email (must end with @stud.hs-heilbronn.de)")
             username = st.text_input("Create a Username")
             password = st.text_input("Create a Password", type="password")
-            subjects = st.multiselect("Subjects You Teach (Select all that apply)", SUBJECT_OPTIONS)
-            sessions = st.multiselect("Teaching Sessions (Summer/Winter)", SESSION_OPTIONS)
             reg_btn = st.form_submit_button("Register")
             if reg_btn:
                 if not university_email.lower().endswith("@stud.hs-heilbronn.de"):
                     st.error("Please use your university email address (must end with @stud.hs-heilbronn.de).")
-                elif not subjects:
-                    st.error("Please select at least one subject.")
-                elif not sessions:
-                    st.error("Please select at least one session (Summer/Winter).")
                 elif len(username.strip()) < 3 or len(password.strip()) < 4:
                     st.error("Please enter a valid username (min 3 chars) and password (min 4 chars).")
                 else:
-                    ok, msg = register_user(university_email, username, password, subjects, sessions)
+                    ok, msg = register_user(university_email, username, password)
                     if ok:
                         st.success(msg)
                     else:

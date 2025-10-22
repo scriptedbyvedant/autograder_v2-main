@@ -677,8 +677,16 @@ def main():
             st.info("No language data for treemap.")
 
     # --- Export PDF ---
+    csv_bytes = filtered.to_csv(index=False).encode("utf-8")
     pdf_bytes = generate_report_pdf(all_insights, export_figures)
-    st.sidebar.title("Export Report")
+    st.sidebar.title("Export Data")
+    st.sidebar.download_button(
+        label="Download Filtered Data (CSV)",
+        data=csv_bytes,
+        file_name="grading_dashboard_filtered.csv",
+        mime="text/csv",
+    )
+    st.sidebar.markdown("---")
     st.sidebar.download_button(
         label="Download Full Report (PDF)",
         data=pdf_bytes,
