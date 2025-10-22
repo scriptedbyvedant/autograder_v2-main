@@ -127,7 +127,7 @@ graph TD
     subgraph Data & Storage
         C --> E[Cloud SQL for PostgreSQL]
         D --> E
-        D --> F[Cloud Storage (PDF Assets)]
+        D --> F[Cloud Storage Assets]
     end
 
     subgraph AI Platform
