@@ -33,6 +33,7 @@ from database.postgres_handler import PostgresHandler
 from grader_engine.multimodal_rag import retrieve_multimodal_context
 from grader_engine.explainer import generate_explanation
 from rag_utils import seed_rag_from_professor
+from typing import Optional, Any
 
 # --- Translations (UI strings) ---
 TRANSLATIONS = {
@@ -58,6 +59,13 @@ TRANSLATIONS = {
         "no_answer": "No answer provided.",
         "debug_title": "🧪 Debug Info",
         "export_button": "📦 Download All Feedback",
+        "share_expander": "🔗 Share Result With A Colleague",
+        "share_email_input": "Enter colleague's email:",
+        "share_button": "Share",
+        "share_success": "Result shared successfully!",
+        "share_error": "Failed to share the result.",
+        "share_disabled_info": "Save this result before sharing it.",
+        "invalid_email": "Please enter a valid email address.",
         "export_zip_label": "Download ZIP",
         "success_message_timed": "✅ All answers have been graded and saved in {elapsed_time:.2f} seconds!"
     },
@@ -83,8 +91,75 @@ TRANSLATIONS = {
         "no_answer": "Keine Antwort abgegeben.",
         "debug_title": "🧪 Debug-Info",
         "export_button": "📦 Alle Feedbacks herunterladen",
+        "share_expander": "🔗 Ergebnis mit Kolleg:innen teilen",
+        "share_email_input": "E-Mail-Adresse des Kollegen eingeben:",
+        "share_button": "Teilen",
+        "share_success": "Ergebnis erfolgreich geteilt!",
+        "share_error": "Ergebnis konnte nicht geteilt werden.",
+        "share_disabled_info": "Speichern Sie das Ergebnis, bevor Sie es teilen.",
+        "invalid_email": "Bitte eine gültige E-Mail-Adresse eingeben.",
         "export_zip_label": "ZIP herunterladen",
         "success_message_timed": "✅ Alle Antworten wurden in {elapsed_time:.2f} Sekunden benotet und gespeichert!"
+    },
+    "Spanish": {
+        "page_title": "⚖️ Resultados de Calificación", "question": "Pregunta", "ideal_answer": "Respuesta Ideal",
+        "student_answer": "Respuesta del Estudiante", "rubric_breakdown": "🧮 Desglose de la Rúbrica",
+        "feedback": "📝 Comentarios", "save_changes": "💾 Guardar Cambios", "results_summary": "Resumen de Resultados",
+        "detailed_view": "Calificación y Edición Detallada",
+        "no_data": "Por favor, suba los datos en la página de Carga primero.", "no_answer": "No se proporcionó respuesta.",
+        "debug_title": "🧪 Depuración del LLM", "retrieved_context_title": "Contexto Recuperado",
+        "export_button": "📦 Descargar Todos los Comentarios", "share_expander": "🔗 Compartir Resultado con un Colega",
+        "share_email_input": "Ingrese el correo electrónico del colega:", "share_button": "Compartir",
+        "share_success": "¡Resultado compartido con éxito!", "share_error": "Error al compartir el resultado.",
+        "share_disabled_info": "Guarde este resultado antes de compartirlo.",
+        "invalid_email": "Por favor, ingrese una dirección de correo electrónico válida.",
+        "code_feedback_tests": "{passed} de {total} casos de prueba superados.",
+        "code_feedback_failures_header": "\n**Pruebas Fallidas:**",
+        "code_feedback_failure_item": "- Entrada: `{input}`\n  - Esperado: `{expected}`\n  - Obtenido: `{got}`",
+        "code_feedback_blank": "La entrega estaba vacía.",
+        "code_feedback_invalid": "La entrega no era código Python válido y no pudo ser ejecutada.",
+        "code_feedback_runtime_error": "El código era sintácticamente correcto pero falló al ejecutarse. Error: `{error}`",
+        "code_feedback_generic_fail": "La evaluación del código falló. Razón: {reason}"
+    },
+    "French": {
+        "page_title": "⚖️ Résultats de notation", "question": "Question", "ideal_answer": "Réponse idéale",
+        "student_answer": "Réponse de l'étudiant", "rubric_breakdown": "🧮 Détail du barème",
+        "feedback": "📝 Commentaires", "save_changes": "💾 Enregistrer les modifications", "results_summary": "Résumé des résultats",
+        "detailed_view": "Notation et édition détaillées",
+        "no_data": "Veuillez d'abord télécharger les données sur la page de téléchargement.", "no_answer": "Aucune réponse fournie.",
+        "debug_title": "🧪 Débogage du LLM", "retrieved_context_title": "Contexte récupéré",
+        "export_button": "📦 Télécharger tous les commentaires", "share_expander": "🔗 Partager le résultat avec un collègue",
+        "share_email_input": "Entrez l'adresse e-mail du collègue :", "share_button": "Partager",
+        "share_success": "Résultat partagé avec succès !", "share_error": "Échec du partage du résultat.",
+        "share_disabled_info": "Enregistrez ce résultat avant de le partager.",
+        "invalid_email": "Veuillez saisir une adresse e-mail valide.",
+        "code_feedback_tests": "{passed} des {total} cas de test réussis.",
+        "code_feedback_failures_header": "\n**Tests échoués :**",
+        "code_feedback_failure_item": "- Entrée : `{input}`\n  - Attendu : `{expected}`\n  - Reçu : `{got}`",
+        "code_feedback_blank": "La soumission était vide.",
+        "code_feedback_invalid": "La soumission n'était pas un code Python valide et n'a pas pu être exécutée.",
+        "code_feedback_runtime_error": "Le code était syntaxiquement correct mais n'a pas pu s'exécuter. Erreur : `{error}`",
+        "code_feedback_generic_fail": "L'évaluation du code a échoué. Raison : {reason}"
+    },
+    "Hindi": {
+        "page_title": "⚖️ ग्रेडिंग परिणाम", "question": "प्रश्न", "ideal_answer": "आदर्श उत्तर",
+        "student_answer": "छात्र का उत्तर", "rubric_breakdown": "🧮 रूब्रिक ब्रेकडाउन",
+        "feedback": "📝 प्रतिक्रिया", "save_changes": "💾 परिवर्तन सहेजें", "results_summary": "परिणाम सारांश",
+        "detailed_view": "विस्तृत ग्रेडिंग और संपादन",
+        "no_data": "कृपया पहले अपलोड पेज पर डेटा अपलोड करें।", "no_answer": "कोई उत्तर नहीं दिया गया।",
+        "debug_title": "🧪 एलएलएम डीबग", "retrieved_context_title": "पुनर्प्राप्त संदर्भ",
+        "export_button": "📦 सभी फीडबैक डाउनलोड करें", "share_expander": "🔗 किसी सहकर्मी के साथ परिणाम साझा करें",
+        "share_email_input": "सहकर्मी का ईमेल पता दर्ज करें:", "share_button": "साझा करें",
+        "share_success": "परिणाम सफलतापूर्वक साझा किया गया!", "share_error": "परिणाम साझा करने में विफल।",
+        "share_disabled_info": "इसे साझा करने से पहले परिणाम सहेजें।",
+        "invalid_email": "कृपया एक वैध ईमेल पता दर्ज करें।",
+        "code_feedback_tests": "{total} में से {passed} टेस्ट केस पास हुए।",
+        "code_feedback_failures_header": "\n**असफल टेस्ट:**",
+        "code_feedback_failure_item": "- इनपुट: `{input}`\n  - अपेक्षित: `{expected}`\n  - मिला: `{got}`",
+        "code_feedback_blank": "सबमिशन खाली था।",
+        "code_feedback_invalid": "सबमिशन मान्य पायथन कोड नहीं था और निष्पादित नहीं किया जा सका।",
+        "code_feedback_runtime_error": "कोड वाक्यात्मक रूप से सही था लेकिन चलने में विफल रहा। त्रुटि: `{error}`",
+        "code_feedback_generic_fail": "कोड मूल्यांकन विफल रहा। कारण: {reason}"
     }
 }
 
@@ -159,6 +234,11 @@ def _dedupe_feedback(text: str) -> str:
             out.append(ln)
             seen.add(key)
     return "\n".join(out)
+
+def _is_valid_email(value: str) -> bool:
+    if not value:
+        return False
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value))
 
 def _total_possible(rubric_list: List[Dict[str, Any]]) -> int:
     return sum(int(r.get("points", 0)) for r in rubric_list or [])
@@ -490,43 +570,81 @@ def grading_result_page():
         for item in stored["rubric_scores"]: item["original_score"] = item["score"]
         st.success("✅ Changes saved!")
 
+    with st.expander(T.get("share_expander", "Share with a colleague")):
+        share_email_key = f"share_email_{detail_key}"
+        share_email = st.text_input(T.get("share_email_input", "Colleague email:"), key=share_email_key)
+        share_button_disabled = stored.get("db_id") is None
+        if share_button_disabled:
+            st.info(T.get("share_disabled_info", "Save this result before sharing it."))
+        if st.button(T.get("share_button", "Share"), key=f"share_btn_{detail_key}", disabled=share_button_disabled):
+            if not _is_valid_email(share_email):
+                st.warning(T.get("invalid_email", "Please provide a valid email address."))
+            else:
+                try:
+                    db.share_result(owner_email=my_email, target_email=share_email, result_id=stored["db_id"])
+                    st.success(T.get("share_success", "Result shared successfully!"))
+                    share_email = ""
+                except Exception as exc:
+                    st.error(f"{T.get('share_error', 'Failed to share the result.')} ({exc})")
+
     # Debug expander
     with st.expander(T["debug_title"]):
         st.json(stored.get("llm_debug", {}))
 
-    # Export all feedback as ZIP of PDFs
+        # Export all feedback as ZIP of PDFs
     st.markdown("---")
     st.subheader("Download Feedback")
 
     pdf_mod = importlib.import_module("ilias_utils.pdf_feedback")
     FeedbackPDFGenerator = getattr(pdf_mod, "FeedbackPDFGenerator")
+    
+     
+    
+    ilias_ingest: Optional[Any] = st.session_state.get("ilias_ingest_result")
+    assignment_name = (ilias_ingest.assignment_name if ilias_ingest else prof_data.get("assignment_no", "feedback")) or "feedback"
 
     if st.button(T["export_button"], type="primary"):
         with st.spinner("Generating PDF feedback for all students..."):
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 for student_id in students_data.keys():
+                    student_grading_data = []
                     student_total_score = 0
-                    all_feedback_text = []
+                    student_total_possible = 0
+
                     for q in prof_data.get("questions", []):
-                        k = f"{student_id}_{q['id']}"
-                        if k not in st.session_state["grading_cache"]["results"]:
-                            continue
-                        result = st.session_state["grading_cache"]["results"][k]
-                        q_score = sum(r.get("score", 0) for r in result.get("rubric_scores", []))
-                        q_possible = _total_possible(q.get("rubric", []))
-                        student_total_score += q_score
-                        feedback_text = result.get("feedback", {}).get("text", TRANSLATIONS["English"]["no_answer"])
-                        all_feedback_text.append(f"--- Question: {q.get('question','')} ---\nScore: {q_score}/{q_possible}\n\n{feedback_text}\n")
-                    pdf_gen = FeedbackPDFGenerator()  # constructor takes no args
-                    pdf_bytes = pdf_gen.build_from_text(
-                        overall_feedback="\n\n".join(all_feedback_text),
-                        overall_score=student_total_score
+                        key = f"{student_id}_{q['id']}"
+                        if key not in grading_results: continue
+                        
+                        result = grading_results[key]
+                        student_grading_data.append(result)
+                        
+                        student_total_score += sum(r.get("score", 0) for r in result.get("rubric_scores", []))
+                        student_total_possible += _total_possible(q.get("rubric", []))
+
+                    pdf_bytes_io = FeedbackPDFGenerator.create_pdf(
+                        student_id=student_id,
+                        assignment_name=assignment_name,
+                        grading_data=student_grading_data,
+                        total_score=student_total_score,
+                        total_possible=student_total_possible
                     )
+                    
+                    safe_student_id = re.sub(r'[^a-zA-Z0-9_.-]', '_', student_id)
+                    file_path_in_zip = f"{safe_student_id}/feedback_report.pdf"
+                    zip_file.writestr(file_path_in_zip, pdf_bytes_io.getvalue())
 
-                    zip_file.writestr(f"{student_id}_feedback.pdf", pdf_bytes)
-            st.download_button(TRANSLATIONS["English"]["export_zip_label"], data=zip_buffer.getvalue(), file_name="feedback.zip", mime="application/zip")
+            st.session_state["feedback_zip_buffer"] = zip_buffer.getvalue()
+            st.success("Generated feedback zip with PDF reports.")
 
+    if "feedback_zip_buffer" in st.session_state:
+        st.download_button(
+            label=T["export_zip_label"],
+            data=st.session_state["feedback_zip_buffer"],
+            file_name=f"{re.sub(r'[^a-zA-Z0-9_.-]', '_', assignment_name)}_feedback.zip",
+            mime="application/zip",
+            on_click=lambda: st.session_state.pop("feedback_zip_buffer", None)
+        )
 
 if __name__ == "__main__":
     grading_result_page()
