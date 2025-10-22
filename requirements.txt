@@ -36,3 +36,4 @@ python-dotenv
 # Development & Testing
 pytest
 plotly
+kaleido

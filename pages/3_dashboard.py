@@ -8,6 +8,7 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 import numpy as np
 from scipy.stats import pearsonr
 
@@ -27,7 +28,16 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # --- PDF Report Generation ---
-def generate_report_pdf(insights):
+def _fig_to_png_bytes(fig, width=840, height=480):
+    """Render a Plotly figure to PNG bytes using Kaleido."""
+    try:
+        return fig.to_image(format="png", width=width, height=height)
+    except Exception:
+        # fallback to plotly default sizing if custom sizing fails
+        return fig.to_image(format="png")
+
+
+def generate_report_pdf(insights, figures):
     buffer = BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -47,6 +57,27 @@ def generate_report_pdf(insights):
             p.showPage()
             text_obj = p.beginText(inch, height - 1.5 * inch)
     p.drawText(text_obj)
+
+    # append dashboard figures on subsequent pages
+    for title, fig in figures:
+        try:
+            img_bytes = _fig_to_png_bytes(fig)
+        except Exception:
+            continue
+        p.showPage()
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(inch, height - inch, title)
+        image = ImageReader(BytesIO(img_bytes))
+        img_w, img_h = image.getSize()
+        max_w = width - 1.5 * inch
+        max_h = height - 2.5 * inch
+        scale = min(max_w / img_w, max_h / img_h)
+        draw_w = img_w * scale
+        draw_h = img_h * scale
+        x = (width - draw_w) / 2
+        y = (height - draw_h) / 2
+        p.drawImage(image, x, y, width=draw_w, height=draw_h, preserveAspectRatio=True, mask='auto')
+
     p.save()
     buffer.seek(0)
     return buffer
@@ -207,6 +238,7 @@ def main():
         student_summary["rank"] = student_summary["avg_score"].rank(ascending=False, method="min")
 
     all_insights = {}
+    export_figures = []
     tabs = st.tabs(["🚀 Executive Summary", "🧑‍🎓 Student Analytics", "📚 Curricular Insights", "📈 Reporting & Insights"])
 
     # ------------------------------- EXECUTIVE SUMMARY -------------------------------
@@ -223,8 +255,9 @@ def main():
         with col1:
             st.markdown("<div class='section-title'>Performance Over Time</div>", unsafe_allow_html=True)
             ts_data = filtered.set_index('created_at').resample('M')['score'].mean().reset_index()
+            fig_month = px.line(ts_data, x='created_at', y='score', title="Monthly Average Score Trend", markers=True)
             st.plotly_chart(
-                px.line(ts_data, x='created_at', y='score', title="Monthly Average Score Trend", markers=True),
+                fig_month,
                 use_container_width=True,
                 key="trend_monthly_avg"
             )
@@ -242,12 +275,13 @@ def main():
             else:
                 insight = "Need more months to infer direction."
             all_insights["Monthly Performance Trend"] = insight
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Monthly Average Score Trend", fig_month))
 
             st.markdown("<div class='section-title'>Course Performance Leaderboard</div>", unsafe_allow_html=True)
             course_perf = filtered.groupby('course')['score'].mean().sort_values(ascending=False).reset_index()
+            fig_course = px.bar(course_perf, x='score', y='course', orientation='h', title="Course Average Score Leaderboard")
             st.plotly_chart(
-                px.bar(course_perf, x='score', y='course', orientation='h', title="Course Average Score Leaderboard"),
+                fig_course,
                 use_container_width=True,
                 key="course_leaderboard"
             )
@@ -261,7 +295,7 @@ def main():
             elif not course_perf.empty:
                 insight = f"Only **{course_perf.iloc[0]['course']}** present (**{course_perf.iloc[0]['score']:.1f}%**)."
             all_insights["Course Leaderboard"] = insight
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Course Average Score Leaderboard", fig_course))
 
         with col2:
             st.markdown("<div class='section-title'>Student Segmentation</div>", unsafe_allow_html=True)
@@ -282,16 +316,24 @@ def main():
                     f"{'reallocate support to at-risk cohort' if risk_pct >= 25 else 'mix looks healthy'}."
                 )
                 all_insights["Student Segmentation Pie"] = insight
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Student Performance Segments", fig_seg))
 
             st.markdown("<div class='section-title'>Submission Volume vs. Performance</div>", unsafe_allow_html=True)
             assignment_summary = filtered.groupby('assignment_no').agg(
                 submission_count=('id', 'count'),
                 avg_score=('score', 'mean')
             ).reset_index()
+            fig_assign_scatter = px.scatter(
+                assignment_summary,
+                x='submission_count',
+                y='avg_score',
+                size='submission_count',
+                color='avg_score',
+                hover_name='assignment_no',
+                title="Assignment Volume vs. Score"
+            )
             st.plotly_chart(
-                px.scatter(assignment_summary, x='submission_count', y='avg_score', size='submission_count', color='avg_score',
-                           hover_name='assignment_no', title="Assignment Volume vs. Score"),
+                fig_assign_scatter,
                 use_container_width=True,
                 key="assign_vol_vs_score"
             )
@@ -301,7 +343,7 @@ def main():
             else:
                 insight = "No assignment aggregates."
             all_insights["Volume vs Performance"] = insight
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Assignment Volume vs. Score", fig_assign_scatter))
 
     # ------------------------------- STUDENT ANALYTICS -------------------------------
     with tabs[1]:
@@ -322,7 +364,7 @@ def main():
                 f"**At-Risk {risk_pct:.1f}% vs High Achievers {achiever_pct:.1f}%**. "
                 f"Spread: **{imbalance:.2f}** → {'target remediation' if risk_pct >= 25 else 'balanced split'}."
             )
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Performance Segments Overview", fig_over))
 
         st.markdown("---")
 
@@ -375,7 +417,6 @@ def main():
                     )
                 else:
                     insight = "Not enough assignments after filtering to assess trend."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
 
             with c2:
                 st.markdown("<div class='section-title'>Performance by Assignment</div>", unsafe_allow_html=True)
@@ -390,7 +431,7 @@ def main():
                     insight = f"{above}/{len(bar_df)} assignments at/above median (**{mid:.1f}%**). Target those below for remediation."
                 else:
                     insight = "No assignments available after row filtering."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Average Score per Assignment", fig_bar))
 
             # Row 2: Monthly submissions + Semester progression
             c3, c4 = st.columns(2)
@@ -398,18 +439,15 @@ def main():
                 st.markdown("<div class='section-title'>Monthly Submission Distribution</div>", unsafe_allow_html=True)
                 monthly_submissions = student_data['created_at'].dt.strftime('%B').value_counts().reset_index()
                 monthly_submissions.columns = ['Month', 'Submissions']
-                st.plotly_chart(
-                    px.pie(monthly_submissions, names='Month', values='Submissions', hole=0.4, title='Submissions by Month'),
-                    use_container_width=True,
-                    key="student_monthly_submissions_explorer"
-                )
+                fig_monthly = px.pie(monthly_submissions, names='Month', values='Submissions', hole=0.4, title='Submissions by Month')
+                st.plotly_chart(fig_monthly, use_container_width=True, key="student_monthly_submissions_explorer")
                 if not monthly_submissions.empty:
                     top_month = monthly_submissions.iloc[0]
                     bottom_month = monthly_submissions.iloc[-1]
                     insight = f"Peak **{top_month['Month']}** ({top_month['Submissions']}); quietest **{bottom_month['Month']}** → schedule nudges then."
                 else:
                     insight = "No monthly activity found."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Submissions by Month", fig_monthly))
             with c4:
                 st.markdown("<div class='section-title'>Semester-wise Progression</div>", unsafe_allow_html=True)
                 student_semester_avg = student_data.groupby('semester')['score'].mean().reset_index()
@@ -425,7 +463,7 @@ def main():
                     insight = f"On average, student is **{abs(delta):.1f} pts** {trend} class across semesters."
                 else:
                     insight = "Not enough semester data to compare."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Semester-wise Progression", fig_sem))
 
             # Row 3: Question type vs score + CALENDAR HEATMAP timestamps
             c5, c6 = st.columns(2)
@@ -441,7 +479,8 @@ def main():
                 qtype_avg = qtype_df.groupby('qtype', as_index=False)['score'].mean()
                 qtype_avg['qtype'] = pd.Categorical(qtype_avg['qtype'], categories=_QTYPE_ORDER, ordered=True)
                 qtype_avg = qtype_avg.sort_values('qtype')
-                st.plotly_chart(px.bar(qtype_avg, x='qtype', y='score', title='Avg Score by Question Type'), use_container_width=True, key="student_qtype_vs_score_bar_explorer")
+                fig_qtype = px.bar(qtype_avg, x='qtype', y='score', title='Avg Score by Question Type')
+                st.plotly_chart(fig_qtype, use_container_width=True, key="student_qtype_vs_score_bar_explorer")
                 if not qtype_avg.empty:
                     best = qtype_avg.iloc[qtype_avg['score'].idxmax()]
                     worst = qtype_avg.iloc[qtype_avg['score'].idxmin()]
@@ -449,7 +488,7 @@ def main():
                     insight = f"Strongest on **{best['qtype']}**; weakest on **{worst['qtype']}** (gap **{gap:.1f} pts**). Target low types first."
                 else:
                     insight = "No question-type info."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Avg Score by Question Type", fig_qtype))
             with c6:
                 st.markdown("<div class='section-title'>Submission Timestamps (Calendar)</div>", unsafe_allow_html=True)
                 cal_df = student_data[['created_at']].copy()
@@ -461,7 +500,7 @@ def main():
                     insight = f"Work across **{total_days}** days (**{total_subs} submissions**). Cluster dark weeks for timely feedback."
                 else:
                     insight = "No timestamp data."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Weekly Activity Calendar", fig_cal))
 
         st.markdown("---")
 
@@ -485,7 +524,7 @@ def main():
                 insight = f"Outperforms on **{better}** assignments, underperforms on **{worse}** → address deficits first."
             else:
                 insight = "No overlapping assignments to compare."
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Student vs Class by Assignment", fig_radar))
 
     # ------------------------------- CURRICULAR INSIGHTS (Professional dashboard) -------------------------------
     with tabs[2]:
@@ -519,15 +558,15 @@ def main():
                 insight = f"Greatest variability on assignment **{str(worst['assignment_no'])}** (IQR **{worst['IQR']:.1f}** pts) → standardize rubric or provide scaffolds."
             else:
                 insight = "Insufficient variability to assess distribution differences."
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Score Distribution per Assignment", fig_box))
 
             # ---- 2) Question Bank: Avg Score vs Volume (Bubble)
             st.markdown("#### Question Bank — Average vs Volume")
             qbank = cur_df.groupby(['assignment_no','question']).agg(avg_score=('score','mean'), submissions=('id','count')).reset_index()
             if not qbank.empty:
                 fig_bubble = px.scatter(qbank, x='avg_score', y='submissions', size='submissions', color='assignment_no',
-                                        hover_name='question', title='Question Average Score vs Submission Volume',
-                                        labels={'avg_score':'Average Score','submissions':'Submissions'})
+                                       hover_name='question', title='Question Average Score vs Submission Volume',
+                                       labels={'avg_score':'Average Score','submissions':'Submissions'})
                 st.plotly_chart(fig_bubble, use_container_width=True, key="curr_bubble_qbank")
                 # Insight
                 low_avg_high_vol = qbank[(qbank['avg_score'] < qbank['avg_score'].median()) & (qbank['submissions'] > qbank['submissions'].median())]
@@ -536,7 +575,7 @@ def main():
                     insight = f"High-impact fix: **Q{row['question']}** in **A{row['assignment_no']}** is low-scoring (**{row['avg_score']:.1f}%**) yet popular (**{row['submissions']}** submissions)."
                 else:
                     insight = "No question stands out as both low-scoring and high-volume."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Question Avg Score vs Volume", fig_bubble))
             else:
                 st.info("No question-level aggregates to plot.")
             
@@ -555,7 +594,7 @@ def main():
                     insight = f"**{top_lang}** dominates (**{share:.1f}%** of submissions). Ensure parity of examples for lesser-used languages."
                 else:
                     insight = "Language mix is too sparse for conclusions."
-                with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+                export_figures.append(("Language Coverage Heatmap", fig_lang))
             else:
                 st.info("No language/assignment combinations found.")
 
@@ -586,7 +625,7 @@ def main():
                 insight = f"Avg score **{growth:+.1f}%** from first to last year; throughput now **{int(yearly_agg['submissions'].iloc[-1])}**."
             else:
                 insight = "Single year available; trend not computed."
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Yearly Performance & Volume", fig_year))
         else:
             st.info("No yearly data available.")
 
@@ -606,7 +645,7 @@ def main():
                 insight = f"Throughput last ~4 weeks is **{recent:.0f}/wk**, {delta:+.1f}% vs the prior period."
             else:
                 insight = "Not enough weeks to compare moving windows."
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Weekly Throughput & Moving Average", fig_wk))
         else:
             st.info("No weekly activity to plot.")
 
@@ -620,7 +659,7 @@ def main():
             insight = f"Median **{median:.1f}%** (IQR **{p25:.1f}–{p75:.1f}%**). Use tails for targeted coaching and re-assessment."
         else:
             insight = "No score data."
-        with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+        export_figures.append(("Score Quality Distribution", fig_hist))
 
         # ---- 4) Language Mix (Treemap)
         lang_counts = filtered['language'].value_counts().reset_index()
@@ -633,12 +672,12 @@ def main():
                 insight = f"Top language holds **{share:.1f}%** share; consider secondary materials for the rest."
             else:
                 insight = "Single-language dataset."
-            with st.expander("Show Insight"): st.markdown(insight, unsafe_allow_html=True)
+            export_figures.append(("Language Mix", fig_tree))
         else:
             st.info("No language data for treemap.")
 
     # --- Export PDF ---
-    pdf_bytes = generate_report_pdf(all_insights)
+    pdf_bytes = generate_report_pdf(all_insights, export_figures)
     st.sidebar.title("Export Report")
     st.sidebar.download_button(
         label="Download Full Report (PDF)",
