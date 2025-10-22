@@ -62,7 +62,7 @@ This diagram shows the end-to-end process when a professor initiates a grading j
 
 ```mermaid
 graph TD
-    A[Start: User clicks Grade] --> B[Backend Logic (2_grading_result.py)]
+    A[Start: User clicks Grade] --> B[Backend Logic 2_grading_result.py]
     B --> C[Fetch submissions from student_data]
     B --> D[Fetch rubric from prof_data]
     C --> E[AI Grading Engine]
@@ -186,44 +186,3 @@ sequenceDiagram
 
 ---
 
-## 5. Model Finetuning Pipeline
-
-This diagram illustrates the complete, user-driven workflow for fine-tuning the model, starting from the application UI and ending with a newly adapted model being loaded.
-
-```mermaid
-graph TD
-    subgraph In Application UI
-        A[Start: User opens "Finetuning Assistant" page] --> B{1. Clicks "Generate Training Data"};
-        B --> C[Backend: Queries `grading_results` for all human corrections];
-        C --> D[Backend: Formats data into JSONL prompt/response pairs];
-        D --> E[UI: Enables `st.download_button`];
-        E --> F{2. User downloads `training_dataset.jsonl`};
-    end
-
-    subgraph In Google Colab (External)
-        F --> G[User uploads dataset to Colab];
-        G --> H{3. User runs provided Python script};
-        H --> I[Installs `mlx-lm`];
-        I --> J[Splits data into train/valid/test sets];
-        J --> K[Runs `mlx_lm.lora` fine-tuning process];
-        K --> L[Outputs `trained_adapters.npz`];
-        L --> M{4. User downloads `trained_adapters.npz`};
-    end
-
-    subgraph In Application Environment
-        M --> N[User places file in the `/training` directory];
-        N --> O{5. User restarts the Streamlit application};
-        O --> P[App Startup Logic];
-        P --> Q{Check if `training/trained_adapters.npz` exists};
-        Q --> |Yes| R[Load base model AND LoRA adapters];
-        Q --> |No| S[Load base model only];
-        R --> T{End: Application now uses fine-tuned model};
-        S --> T;
-    end
-```
-
-**Description:**
-1.  **Data Generation:** The user initiates the process in the UI. The application queries its own database for all human corrections and formats them into the specific JSONL format required by the training script.
-2.  **Training:** The user takes this data file to a Google Colab environment and runs a provided script. This script handles all the technical details of the MLX fine-tuning process, creating a set of LoRA adapters (`trained_adapters.npz`) that encapsulate the learned corrections.
-3.  **Deployment:** The user downloads these adapters and places them in the application's `training/` directory.
-4.  **Activation:** The next time the application starts, it automatically detects the presence of this file and loads the adapters on top of the base model. All subsequent grading tasks will now be performed by this newly fine-tuned model, completing the self-improvement loop.

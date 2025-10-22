@@ -32,8 +32,8 @@ This work makes the following novel contributions, representing significant adva
 *   **Design and Implementation of a Multi-Agent Grading System:** This is the core architectural innovation of this thesis. Moving beyond a single LLM call, our system now employs a team of AI agents (e.g., a Grader Agent, a Reviewer Agent, and a Final Scorer) that collaborate to increase grading robustness.
 *   **Integration of a RAG-Powered Knowledge Base:** We have introduced a mechanism for the grading agents to query a vector database of past examples, enhancing contextual understanding and temporal consistency.
 *   **Development of a Secure, Docker-Based Code-Grading Module:** A major functional extension that allows the system to securely execute and grade programming assignments, providing both a score and rich, LLM-generated feedback.
-*   **A Rich Analytics Dashboard with Data Export:** The frontend was significantly enhanced to include a comprehensive analytics dashboard with interactive visualizations and the ability to export data to CSV and PDF formats for reporting.
-*   **A Rigorous Comparative Evaluation:** A comprehensive evaluation methodology designed to quantify the improvements of the new system over the baseline, using advanced metrics like Krippendorff's Alpha for inter-rater reliability and the `deepeval` framework for assessing the nuanced quality of AI-generated text.
+*   **Comprehensive Analytics Dashboard:** The frontend now includes interactive visualizations and export options for CSV/PDF reports.
+*   **MLOps Hooks (Future Scope):** Planned work includes pipeline orchestration, CI/CD, and monitoring for grading workflows.
 
 ---
 
