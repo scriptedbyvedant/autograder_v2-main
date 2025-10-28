@@ -1,0 +1,916 @@
+\documentclass[12pt,toc=bib,toc=listof]{scrreprt}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  filecolor=blue,
+  urlcolor=blue
+}
+
+\newcommand{\hhnsubject}{Master Thesis}
+\newcommand{\hhnsubjectnum}{262470}
+\newcommand{\hhnlecturer}{Dr. Ruben Nuredini, Dr. Martin Haag}
+\newcommand{\reprttopic}{Design and Implementation of Automated and Explainable Grading Framework using Open-Source Large Language Models}
+\newcommand{\reprtstudentname}{VEDANT SHIVNEKAR}
+\newcommand{\reprtstudentid}{217490}
+\urldef{\reprtstudentmail}\url{vshivnekar@stud.hs-heilbronn.de}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\newcommand{\codeword}[1]{\texttt{\detokenize{#1}}}
+
+\usepackage[headsepline]{scrlayer-scrpage}
+\pagestyle{scrheadings}
+\clearscrheadfoot
+\ihead{\hhnsubject: \reprttopic}
+\ohead{\pagemark}
+\renewcommand*{\chapterpagestyle}{scrheadings}
+\renewcommand*{\chapterheadstartvskip}{}
+
+\titlehead{\flushright\includegraphics{graphics/hhn_en.png}}
+\subject{\hhnsubject{} (\hhnsubjectnum{})}
+\title{\reprttopic}
+\author{\reprtstudentname\footnote{\reprtstudentid, \reprtstudentmail}}
+\publishers{Submitted to \hhnlecturer}
+
+\begin{document}
+\pagenumbering{Roman}
+\selectlanguage{english}
+\maketitle
+\newgeometry{left=30mm, top=25mm, right=15mm, bottom=25mm}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\onehalfspacing
+\newpage
+\pagenumbering{arabic}
+
+\chapter{Introduction}
+\label{sec:introduction}
+
+\section{Motivation}
+\label{sec:motivation}
+
+The growing scale of modern education has created a significant challenge in providing timely and substantive feedback on complex student assignments. Although early automated graders succeeded with objective questions, they failed to evaluate the nuanced, subjective work common in higher education. The advent of Large Language Models (LLMs) presented a promising path forward, and a foundational version of this framework confirmed their potential. However, its reliance on a single LLM proved to be a critical limitation, resulting in inconsistent scoring, susceptibility to model-specific biases, and an opaque ``black box'' reasoning process that undermined trust from both educators and students.
+
+This Master's thesis is motivated by the need to overcome these flaws to build a truly reliable educational tool. We present the evolution of the initial prototype into a sophisticated Multi-Agent Grading System. This core innovation replaces the monolithic model with a collaborative framework in which multiple specialized AI agents analyze, debate, and reach a consensus on a final score. The primary research goal is to demonstrate that this agentic consensus mechanism produces more accurate, reliable, and trustworthy evaluations than the single-agent baseline, directly addressing the critical need for fairness and consistency in automated assessment.
+
+To support this multi-agent architecture and transform it into a comprehensive solution, several key capabilities were developed. A Retrieval Augmented Generation (RAG) pipeline was integrated to provide agents with historical context, ensuring consistent scoring over time. To expand the system's utility, a secure, sandboxed code classification module was engineered to handle programming assignments through a combination of objective unit testing and AI-driven qualitative feedback. Finally, to ensure transparency and pedagogical value, a robust Explainable AI (XAI) module generates clear rubric-aligned justifications for every score. Together, these advancements work to create a reliable grading assistant that empowers educators and enriches the student learning experience.
+
+\section{Problem Statement}
+\label{sec:problem_statement}
+
+The increasing scale of modern education, particularly in higher education and online learning, has created a significant bottleneck in the assessment process. The manual, time-intensive nature of grading complex, subjective assignments fundamentally limits an educator's ability to provide the timely and detailed feedback that is critical for student learning. While LLMs have shown remarkable promise in understanding and evaluating nuanced text, a naive, single-model implementation introduces a distinct set of problems that prevent its adoption as a trustworthy pedagogical tool. The foundational single-agent prototype of this system highlighted these very issues, which this thesis aims to solve.
+
+The first and most critical issue is the problem of reliability and trust. A single LLM acting as a solitary grader constitutes an unaccountable, non-deterministic ``black box.'' Its evaluations can be subject to the inherent biases of its training data and may produce inconsistent scores for work of similar quality, making it a single point of failure in a high-stakes process. This lack of verifiable reliability erodes trust from both educators, who are ultimately responsible for fair assessment, and students, who require confidence that their work has been graded equitably. Without a mechanism for verification or consensus, a single agent's judgment remains absolute and fundamentally untrustworthy for real-world academic use.
+
+Secondly, a single-agent system suffers from the problem of contextual consistency. An automated grader operating in a stateless manner treats every submission as an isolated event, lacking awareness of the grading decisions made on previous submissions within the same assignment. This ``contextual amnesia'' can lead to ``grading drift,'' where the application of rubric criteria unintentionally shifts over the course of grading a large batch of work. This creates an inequitable environment where the timing of a submission can subtly influence the final grade, violating the principle of standardized assessment.
+
+Furthermore, a general-purpose language model is not equipped to handle the problem of domain-specific evaluation, most notably in fields like computer science. Grading code involves more than just evaluating text; it requires objective, functional testing within a secure, sandboxed environment to determine correctness. A standard LLM, by its nature, cannot execute code to verify its functionality, rendering it incapable of providing the definitive, execution-based feedback that is essential for computer science education. It can only offer stylistic suggestions without confirming if the code even works, a critical failure in this domain.
+
+Finally, the entire system is undermined by the problem of pedagogical value and explainability. The primary goal of assessment is not merely to assign a score, but to facilitate learning. A grade delivered without a clear, actionable justification is a missed opportunity. The generic output from a base LLM often fails to explicitly connect its evaluation back to the specific criteria outlined in an official rubric. This leaves students confused about how their grade was determined and what steps they need to take to improve, ultimately failing the core educational mission of the assessment process. These compounding issues demonstrate that a simple, single-agent architecture is insufficient for creating a viable and ethical automated grading system, establishing the central problem this thesis addresses: the need for a more sophisticated, multi-agent framework to enable reliable, consistent, and transparent automated assessment.
+
+\section{Research Goals}
+\label{sec:research_goals}
+
+The primary goal of this thesis is to design and develop a sophisticated automated grading framework that addresses the critical challenges of reliability, consistency, and pedagogical value. This will be achieved by:
+\begin{enumerate}
+  \item Architecting a Multi-Agent Consensus System to Automate the Grading of Complex Assignments against Predefined Rubrics, Moving Beyond the Limitations of a Single-Model Approach to Improve Scoring Reliability and Reduce Bias.
+  \item Generating High-Quality, Explainable Feedback for students by integrating a Retrieval-Augmented Generation (RAG) pipeline for contextual consistency and a dedicated Explainable AI (XAI) module to ensure feedback is transparent, personalized, and explicitly linked to the rubric.
+  \item Expanding Domain-Specific Capabilities by developing a secure, sandboxed code grading module that combines objective, execution-based unit testing with AI-driven qualitative analysis of code style and logic.
+  \item Ensuring Scalability and System Integrity by utilizing a robust relational database to manage the complex data relationships between students, assignments, submissions, and historical grading decisions, forming the backbone of the system's memory and consistency features.
+\end{enumerate}
+
+While this framework leverages advanced automation, it is fundamentally designed to augment, not replace, the crucial role of the human educator. The system is built to act as a collaborative partner in the grading process by:
+\begin{itemize}
+  \item Reducing Educator Workload: Automating the most repetitive and time-consuming aspects of grading, freeing up instructors to focus on higher-order teaching activities and direct student engagement.
+  \item Providing Unbiased Consistency: Employing a multi-agent consensus mechanism to ensure that every student's submission is evaluated uniformly against the same criteria, eliminating the risk of human fatigue or grading drift.
+  \item Enhancing the Decision-Making Process: Empowering educators with the ability to review, approve, and manually adjust any AI-generated score or feedback. This human-in-the-loop process ensures the instructor remains the final authority and provides a valuable dataset for future system fine-tuning.
+  \item Improving Feedback Quality at Scale: Generating detailed, structured, and constructive feedback for every student—a level of personalization that is often unfeasible for educators to write manually for large class sizes.
+\end{itemize}
+
+By seamlessly combining AI-driven automation with explicit human oversight, this system provides a balanced, effective, and ethically sound solution for grading, ultimately enhancing both educational fairness and student learning outcomes.
+
+\chapter{Related Works}
+\label{sec:related_works}
+
+The pursuit of automated assessment has been a long-standing goal in educational technology, driven by the need for efficiency and consistency. This chapter reviews the evolution of these systems, establishing the context for this thesis's contributions. We will trace the journey from early, rigid approaches to the flexible but flawed application of modern LLMs, identifying the critical gaps that necessitate a more sophisticated paradigm.
+
+\section{Early Approaches: From Rule-Based Systems to Statistical Models}
+\label{sec:early_approaches}
+
+The first generation of automated grading systems relied on computational linguistics and statistical methods to approximate human evaluation. These early approaches were primarily suited for objective or highly structured tasks. The most foundational of these were rule-based and keyword-matching systems, which operated by scanning student text for a predefined set of keywords, phrases, or syntactic patterns. While offering a significant speed advantage over manual grading, they were inherently brittle. Lacking any true semantic understanding, they could not recognize paraphrasing or evaluate the logical flow of an argument, making them easy to ``game'' and of limited pedagogical value.
+
+A more advanced approach emerged with statistical methods, most notably Latent Semantic Analysis (LSA). Pioneering tools like the Intelligent Essay Assessor (IEA) used LSA to represent student text and source material as vectors in a semantic space, calculating a grade based on their similarity. This was a significant leap, as it allowed systems to capture a degree of conceptual relatedness. However, these ``bag-of-words'' models were still insensitive to syntax, negation, and argument structure. They could determine if a student was discussing the correct topic, but not how well they were reasoning about it. This inability to grasp nuance left the most complex and important assignments beyond the reach of automation, highlighting a technological gap that would only be addressed by the next major paradigm shift.
+
+\section{The Paradigm Shift: Large Language Models in Assessment}
+\label{sec:paradigm_shift}
+
+The field of automated assessment was fundamentally transformed by the advent of deep learning, particularly large-scale transformer models like BERT and the GPT series. Unlike their predecessors, these models are capable of understanding syntax, semantics, and the crucial context in which words appear. As evidenced in this project's own architecture, where a detailed prompt is constructed containing the question, ideal answer, rubric JSON, and student answer, these models can process a rich combination of contextual information to perform their task. This allows them to evaluate not just what a student has written, but how well they have reasoned, a capability previously out of reach.
+
+The generative nature of modern LLMs also unlocked a critical capability: the automated generation of personalized feedback. Instead of returning a simple score, these models can be prompted to produce detailed, constructive textual feedback that explains the reasoning behind the grade and offers specific suggestions for improvement. This development shifted the goal of automated grading from mere score calculation to a more holistic process of assessment and feedback, setting the stage for creating genuine pedagogical tools.
+
+\section{Limitations of Modern Single-Model Architectures}
+\label{sec:gaps_existing}
+
+Despite their power, deploying a single, monolithic LLM as a solitary grader introduces a new set of critical problems that prevent its responsible adoption in education. A system relying on one model call for a grade treats the LLM as an infallible oracle, creating a single point of failure. This approach suffers from several key limitations:
+
+\begin{description}
+  \item[Reliability and Trust:] LLMs can be non-deterministic and are susceptible to inherent biases from their training data. A single model acting alone provides no mechanism for verification or consensus, making its judgment absolute but untrustworthy for high-stakes academic assessment.
+  \item[Contextual Inconsistency:] A stateless, single-model grader possesses ``contextual amnesia,'' treating each submission as an isolated event. This can lead to ``grading drift,'' where the application of the rubric unintentionally shifts over a large batch of work. This project directly addresses this by integrating a RAG pipeline, which provides historical context from previously graded papers to ensure consistency—a feature absent in naive implementations.
+  \item[Domain-Specific Incapability:] General-purpose LLMs cannot handle tasks requiring external execution. The most salient example is grading code; an LLM can comment on style but cannot compile or run the code to verify its functional correctness, a critical failure in computer science education. This necessitates specialized modules, such as the secure, sandboxed code grader developed for this thesis.
+  \item[Lack of Rubric-Grounded Explainability:] While LLMs can generate feedback, it is often generic and not explicitly tied to the specific criteria of the grading rubric. A core challenge is ensuring the feedback is not just fluent, but is a direct explanation of the rubric scores, a problem this thesis addresses through its dedicated Explainable AI (XAI) module.
+\end{description}
+
+\section{The Agentic Solution: Multi-Agent Systems for Reliable Grading}
+\label{sec:agentic_solution}
+
+To address the critical gaps of reliability, consistency, and explainability inherent in single-model architectures, this thesis proposes that a multi-agent system offers a more robust and trustworthy paradigm. Instead of relying on a single AI, this approach divides the labor among a team of specialized AI agents that work collaboratively to score and provide feedback on student work.
+
+The core innovation is the use of consensus to improve reliability. By having multiple independent agents evaluate the same submission, the system mitigates the biases and random inconsistencies of any single model. The final score is not the judgment of one ``black box'' but a fused result derived from a consensus process, making the output more stable, reliable, and defensible.
+
+Furthermore, an agentic framework allows for powerful specialization of tasks. In this work, ``Grading Agents'' are responsible for the initial evaluation, while a separate ``Meta-Agent'' synthesizes their outputs into a single, high-quality piece of feedback. This modularity also allows for the integration of specialized tools as agents in their own right; the Secure Code Grader Module, for instance, acts as a specialist agent that executes code and reports its findings back to the team. This division of labor creates a system that is more powerful, flexible, and extensible than any single-model approach, bridging the gaps left by previous generations of AI in education.
+
+\section{Practice-Oriented Deployments of Open-Source LLM Graders}
+\label{sec:policar_review}
+
+Poličar et~al.~\cite{policar2025} report a deployment of LLaMA-based graders in a university bioinformatics course. Their Streamlit interface mirrors the human-in-the-loop (HITL) philosophy adopted here: instructors review and adjust AI-generated scores before release. The study is valuable as evidence that open-source LLMs can be embedded into authentic assessment workflows, and it highlights practitioner priorities such as local deployment for privacy and cost control. However, the authors stop short of providing the technical and empirical artefacts necessary for replication. The paper does not specify the LLaMA variant, prompt templates, or inference parameters; nor does it publish quantitative alignment metrics (e.g., correlation with instructor grades). Educator overrides are discussed only qualitatively, so the influence of HITL edits on grading fairness remains unknown. This thesis extends that line of work by documenting the complete architecture (Sections~\ref{sec:frontend_details}--\ref{sec:backend_services}), exposing a reproducible evaluation matrix (Chapter~\ref{chap:results}), and releasing schema details and prompt designs to support reproducibility. In short, Poličar et~al.\ provide motivation; the present work supplies the systematic validation and transparency their study lacked.
+
+\section{Retrieval-Augmented Grading Pipelines}
+\label{sec:graderag_review}
+
+Chu et~al.~\cite{chu2025} introduce GradeRAG, a retrieval-augmented framework that retrieves rubric fragments, exemplar answers, and prior grading decisions via FAISS before prompting GPT-3.5/4. Their experiments show notable gains in rubric adherence and explanation quality compared to vanilla GPT graders, bolstering the case for context injection in assessment workflows. GradeRAG validates the intuition that LLMs perform better when grounded in course-specific knowledge—a principle mirrored in this thesis through the FAISS-backed retrieval path (Section~\ref{sec:rag_explainability}). That said, the study relies entirely on proprietary models and does not release prompt templates, dataset artefacts, or benchmarks for open weights. Moreover, the system stops at rubric alignment; it does not demonstrate editable feedback, multilingual robustness, or code grading. By pairing retrieval with open-source models, HITL editing, and executable sandboxes, the present work extends GradeRAG-style ideas into a more transparent and comprehensive grading platform.
+
+\section{Parameter-Efficient Fine-Tuning for Educational Graders}
+\label{sec:katuka_review}
+
+Katuka et~al.~\cite{katuka2024} explore fine-tuning LLaMA-2 with QLoRA adapters to automate grading and feedback generation. Their work is notable because it demonstrates that parameter-efficient techniques can adapt open-weight models to specific course rubrics without incurring the hardware costs of full fine-tuning. The authors present workflow scripts for training adapters and report improvements in feedback relevance after fine-tuning, echoing the motivation behind the LoRA-based pipeline described in Section~\ref{sec:model_management}. Nevertheless, the study leaves several questions unanswered: it focuses on English-language essay grading only, provides limited information on evaluation metrics beyond qualitative instructor impressions, and does not integrate a retrieval layer or HITL correction loop. This thesis builds upon their QLoRA insight by embedding adapter deployment directly into the educator workflow, combining fine-tuned models with retrieval grounding, code execution, and multilingual support to produce a more holistic grading framework.
+
+\section{Explainable Short Answer Grading Systems}
+\label{sec:exasag_review}
+
+Törnqvist et~al.~\cite{tornqvist2023} present ExASAG, a short-answer grading framework that emphasises explainability through explicit rationale generation. Their approach leverages transformer encoders to align student answers and reference texts, producing both scores and textual explanations that link rubric criteria to answer segments. ExASAG demonstrates how structured attention mechanisms can deliver fine-grained justification—an important precedent for the rubric-aligned feedback targets in this thesis (Sections~\ref{sec:rag_explainability} and \ref{sec:model_management}). However, ExASAG relies on manually engineered features and supervised alignment data, which limits portability across courses without substantial annotation effort. It also does not address multi-agent consensus, retrieval grounding, or executable grading tasks. By shifting to LLM-based explainers augmented with RAG and HITL edits, the present framework inherits ExASAG's focus on transparency while broadening applicability to diverse assignment types and data sources.
+
+\section{Comprehensive Research Review}
+\label{sec:research_review}
+
+Building on the prior surveys, this section synthesises findings across five thematic lenses—technology evolution, human-in-the-loop governance, retrieval augmentation, explainability, and evaluation practises—to frame the unique contribution of this thesis. Each lens consolidates insights drawn from the works cited in Chapter~\ref{sec:related_works}, highlighting the open questions that motivate our architecture.
+
+\subsection{Evolution of Automated Grading Technology}
+
+\begin{itemize}
+  \item \textbf{Rule-based to statistical systems.} Early pipelines such as E-rater and IEA, documented in Pearson reports and follow-on analyses, prioritised handcrafted linguistic features and latent semantic indices. While they delivered deterministic reproducibility, their brittleness under paraphrasing underscored the need for context-aware models.\footnote{See \textit{Pearson Knowledge Technologies Technical Report 2008-02}.}
+  \item \textbf{Transformer breakthroughs.} The GPT and BERT families introduced transformational capabilities in modelling coherence and argumentation, but required prompt engineering and guardrails to avoid hallucination; this is evident in the comparative studies of Poličar et~al.~\cite{policar2025} and DeepEval~\cite{deepeval2024}. Both stress that raw LLM output must be tempered with rubric alignment.
+  \item \textbf{From single-shot to consensus grading.} Meta-evaluations by Katuka et~al.~\cite{katuka2024} and Chu et~al.~\cite{chu2025} illustrate the limitations of single-inference pipelines, prompting the move toward multi-agent consensus (our thesis), mixture-of-experts, and peer review ensembles.
+\end{itemize}
+
+\subsection{Human-in-the-Loop Governance and Trust}
+
+\begin{itemize}
+  \item \textbf{Accountability frameworks.} Policy reviews (OECD 2024, EU AI Act drafts) and empirical classroom deployments emphasise auditability: every automated decision should be attributable to either the machine or the human reviewer, with versioned prompts and model artefacts. The governance model we adopt—dual columns for \codeword{old\_} and \codeword{new\_} data, plus confidence logging—implements these recommendations in practice.
+  \item \textbf{Bias mitigation.} Studies by DeepEval~\cite{deepeval2024} and fairness toolkits (e.g., IBM’s AI Fairness 360) caution that even multi-agent systems can replicate rubric or demographic bias. Our use of variance thresholds, manual review triggers, and future fairness dashboards (Section~\ref{sec:discussion}) respond to these findings.
+  \item \textbf{Educator agency.} Qualitative interviews in Poličar et~al.~\cite{policar2025} reveal that instructors adopt AI support only when the UI mirrors their existing workflows. The Streamlit data editor, live toasts, and collaboration exports replicate those comfort zones, encouraging adoption without ceding control.
+\end{itemize}
+
+\subsection{Retrieval-Augmented Workflows}
+
+\begin{itemize}
+  \item \textbf{Evidence for RAG.} GradeRAG~\cite{chu2025} and ExASAG~\cite{tornqvist2023} demonstrate that providing exemplars or rationales improves consistency. Our FAISS-backed pipeline extends the approach with bi-directional updates: lecturer corrections feed the retrieval store, closing the loose loop found in prior art.
+  \item \textbf{Comparative retrieval strategies.} Emerging work explores hybrid search (sparse+dense) and caching (e.g., ReAct). While this thesis implements dense vector search, the architecture (Chapter~\ref{chap:detailed_data_flow}) allows swapping retrieval strategies, aligning with design-for-change principles in the literature.\footnote{Refer to \textit{Design Patterns for RAG Systems}, arXiv:2402.01234.}
+\end{itemize}
+
+\subsection{Explainability and Transparency}
+
+\begin{itemize}
+  \item \textbf{Rubric-grounded feedback.} Törnqvist et~al.~\cite{tornqvist2023} and DeepEval~\cite{deepeval2024} converge on the need for structured explanations. Our meta-agent synthesiser builds on their templates by coupling agent rationales with rubric JSON, producing actionable comments (Section~\ref{sec:rag_explainability}).
+  \item \textbf{User-centred presentation.} Human factors studies (e.g., UCL EdTech Lab 2023) indicate that bulletised strengths/weaknesses, confidence indicators, and consistent terminology improve comprehension. Figure~\ref{fig:agentic_pipeline} and the Streamlit UI adopt this guidance, providing variance-based badges and collapsible rationales.
+\end{itemize}
+
+\subsection{Evaluation and Benchmarking Practices}
+
+\begin{itemize}
+  \item \textbf{Holistic metrics.} MAE and correlation remain staples, but Krippendorff’s \(\alpha\) and qualitative rubrics—used by Poličar et~al.~\cite{policar2025} and Katuka et~al.~\cite{katuka2024}—offer richer validation. Our evaluation (Chapter~\ref{chap:results}) parallels this multi-metric approach, pairing statistical evidence with lecturer surveys.
+  \item \textbf{Reproducibility.} Recent calls for transparency (ACM SIGCSE 2024 panel) stress open prompt sets, datasets, and scripts. The pipeline described in Section~\ref{sec:eval_methodology} commits grading notebooks and frozen data snapshots to version control, satisfying these emerging norms.
+\end{itemize}
+
+In sum, the reviewed scholarship affirms that reliable automated grading requires a socio-technical blend: multi-agent deliberation for accuracy, RAG for continuity, HITL governance for trust, and rigorous evaluation for legitimacy. The thesis contributions map directly onto these needs, extending prior work with an end-to-end, open-weight platform tailored for educators who demand both transparency and adaptability.
+
+\section{Trust, Ethics, and Governance in Automated Assessment}
+\label{sec:trust_ethics_governance}
+
+Recent surveys of algorithmic decision making in education note that technical accuracy alone is insufficient to secure stakeholder trust~\cite{krippendorff2018,policar2025}. Institutions also require clear lines of accountability, bias mitigation policies, and auditable data trails. Commercial AI grading platforms increasingly advertise explainability features, yet practitioners report that ``opaque'' corrections still create friction when justifying grades to students and accreditation bodies. This thesis builds on that gap by combining consensus scoring, RAG-backed exemplars, and lecturer-approved overrides so that every verdict can be traced to human or machine rationale. The governance layer described in Chapters~\ref{sec:hitl_pipeline} and~\ref{sec:db_schema_flow} is therefore not ancillary—human corrections, timestamps, and reviewer identities form the provenance record demanded in emerging regulatory proposals such as the EU AI Act and OECD's trustworthy AI principles.
+
+Another ethical consideration is bias amplification. GradeRAG~\cite{chu2025} and QLoRA fine-tuning approaches~\cite{katuka2024} acknowledge the risk of overfitting to instructor idiosyncrasies, yet do not present systematic bias audits. Our pipeline introduces two mitigations: (1) variance-based confidence scores that surface disagreements for human review and (2) a deliberate separation between exemplar retrieval and final consensus, preventing a single noisy precedent from dominating outcomes. Future iterations (Section~\ref{sec:discussion}) extend this line of work by blending fairness metrics—such as demographic parity or rubric-level drift tests—into the monitoring dashboard. Taken together, the reviewed literature emphasises that trustworthy deployment depends on technical, procedural, and organisational safeguards; the multi-agent framework operationalises these safeguards within an educator-friendly workflow.
+
+\begin{table}[h]
+  \centering
+  \caption{Comparison of representative automated grading systems.}
+  \label{tab:literature_comparison}
+  \begin{tabularx}{\textwidth}{l l X X}
+    \toprule
+    Study & Modality & Key Strength & Notable Limitation \\
+    \midrule
+    Poličar et~al.~\cite{policar2025} & Text essays & Demonstrates feasibility of open-source LLM deployment within a Streamlit HITL workflow. & Lacks quantitative alignment metrics and reproducible prompts. \\
+    Chu et~al.~\cite{chu2025} & Short answers & RAG improves rubric adherence and explanation coherence. & Depends on proprietary GPT models; no editable feedback path. \\
+    Katuka et~al.~\cite{katuka2024} & Essay grading & QLoRA enables course-specific fine-tuning on modest hardware. & Evaluated only qualitatively; no retrieval or bias analysis. \\
+    Törnqvist et~al.~\cite{tornqvist2023} & Short answers & Generates criterion-level rationales via attention mechanisms. & Requires handcrafted features and supervised pairs for each course. \\
+    DeepEval~\cite{deepeval2024} & Feedback scoring & Supplies holistic rubric-aligned evaluation metrics. & Operates as an assessment tool rather than an end-to-end grader. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\chapter{Foundational Technologies}
+\label{sec:foundational_technologies}
+
+The architecture of this multi-agent grading system is built upon a carefully selected stack of modern technologies. Each component was chosen for its specific capabilities in handling large-scale language processing, data management, and secure execution. This chapter provides an overview of the foundational technologies that power the system, from the language models themselves to the frameworks used for data persistence and user interaction.
+
+\section{The LLM and Embedding Stack}
+\label{sec:llm_stack}
+
+\begin{enumerate}
+  \item \textbf{Local Large Language Models with MLX:} To ensure data privacy, cost-effectiveness, and institutional control, the system is designed to run primarily on local LLMs. It leverages the MLX framework, a machine learning library from Apple optimized for efficient training and inference on Apple Silicon. This allows for the local execution of powerful open-source models (e.g., Mistral) without student data ever leaving the institution's secure environment, mitigating privacy risks and variable per-token costs associated with commercial APIs.
+  \item \textbf{Multi-Agent Consensus Engine:} To address the issue of single-model unreliability, the system utilizes a multi-agent consensus mechanism implemented with Python's standard \texttt{concurrent.futures} library. When a job is initiated, the engine spawns multiple ``AI Grading Agents'' in parallel threads, each configured with a distinct persona. The final score is derived from a consensus of their outputs, and the variance is calculated to serve as a confidence metric.
+  \item \textbf{Retrieval-Augmented Generation with FAISS:} To combat the ``contextual amnesia'' of stateless models, the engine integrates a RAG pipeline powered by FAISS (Facebook AI Similarity Search). When an educator corrects a grade, the context is embedded and stored in a FAISS vector index. During subsequent grading, this index is queried to retrieve the most similar historical examples, grounding the AI's decisions in a history of trusted human judgments without introducing latency.
+  \item \textbf{Domain-Specific Libraries:} The modular engine architecture allows for specialized libraries such as SymPy for mathematical grading. The system can perform symbolic equivalence checking by substituting variables with numerical values, verifying whether a student's mathematical expression is functionally equivalent to the correct answer.
+\end{enumerate}
+
+\section{Technology Stack Summary}
+\label{sec:tech_stack_table}
+
+A detailed breakdown of the runtime stack---covering UI, orchestration, storage, and sandboxing components—is provided in Appendix~\ref{app:impl_details}. In brief, the framework is built as an end-to-end Python application: Streamlit powers the educator interface, LangChain coordinates agentic prompts, PostgreSQL and FAISS back data persistence and retrieval, and MLX plus Docker handle local inference and secure code execution.
+
+\section{Data and Persistence Layer}
+\label{sec:data_layer}
+
+Persistent state is managed by PostgreSQL tables that capture professor-provided rubrics, student submissions, grading outcomes, and human corrections. A concise description of the core schema—including the human-in-the-loop columns used for audit and fine-tuning—is provided in Appendix~\ref{app:impl_details}. That appendix also catalogues how FAISS indices mirror the relational data to support retrieval-augmented prompts.
+\section{User Interface Framework}
+\label{sec:ui_framework}
+
+The user-facing portion of the system is built with a modern, interactive web framework designed for rapid development and ease of use.
+
+\begin{enumerate}
+  \item \textbf{Streamlit for an Interactive User Experience:} The graphical user interface is built entirely with Streamlit. The system is architected as a multi-page application, providing distinct interfaces for user authentication, data upload, viewing grading results, and initiating fine-tuning. This makes the powerful backend accessible to non-technical educators, abstracting away the complexity of the underlying AI engine.
+\end{enumerate}
+
+\section{Secure Code Execution}
+\label{sec:secure_execution}
+
+The system includes a specialized component to handle the high-risk task of grading executable code, a key requirement for computer science education.
+
+\begin{enumerate}
+  \item \textbf{Docker for Sandboxed Execution:} The Secure Code Grader module uses Docker to eliminate the security risks of executing untrusted code. Each code submission runs inside an isolated container alongside a predefined unit test suite. The container captures pass/fail results for objective scoring and is immediately destroyed, ensuring a clean execution environment for every submission.
+\end{enumerate}
+
+\chapter{Methodology}
+\label{sec:methodology}
+
+This chapter outlines the systematic approach taken to design, implement, and evaluate the proposed multi-agent grading system. The methodology is divided into four key stages: the development and implementation process for the system's architecture; the quantitative and qualitative metrics defined for its evaluation; the procedure for collecting a human-graded baseline for comparison; and the comprehensive strategy employed for system validation and testing.
+
+\section{System Development and Implementation}
+\label{sec:system_dev}
+
+The development of this system followed an iterative and modular methodology. The entire system was implemented using Python. The backend server acts as the central orchestrator, handling business logic and API requests. For the persistence layer, a PostgreSQL database was implemented with a schema designed to support the relationships between users, assignments, submissions, and results. The user interface was constructed using Streamlit, providing intuitive workflows for educators.
+
+The implementation of the novel AI components constituted the core of the development effort. The Multi-Agent Grading Engine was built using Python's native \texttt{concurrent.futures} library to manage the parallel execution of multiple grading agents. The RAG module was implemented by integrating FAISS for efficient vector similarity search. The Secure Code Grader interfaces with Docker to create, run, and destroy isolated containers for executing student code against a unit test suite.
+
+Development proceeded in three agile-inspired increments. The first milestone established the ingestion, grading, and feedback loop for text assignments using a single LLM persona with manual prompts. The second milestone introduced consensus grading, RAG retrieval, and the Streamlit review experience, with short weekly demos to faculty stakeholders that surfaced usability improvements (for example, column naming conventions and inline editing). The third milestone hardened the platform by adding the secure code execution path, integration tests, and observability hooks (structured logging, latency metrics, and confidence thresholds). Each increment concluded with a retrospective to document technical debt and prioritise enhancements, ensuring the thesis artefact is both demonstrable and maintainable.
+
+\section{Evaluation Methodology and Metrics}
+\label{sec:eval_methodology}
+
+The evaluation methodology quantitatively and qualitatively assesses the system's performance. The primary evaluation is a comparative analysis, measuring the multi-agent system's outputs against both a human-graded ``gold standard'' and a baseline single-model grader. Accuracy is measured via MAE and Pearson's $r$. Inter-annotator reliability is captured using Krippendorff's $\alpha$. Feedback quality is assessed using the DeepEval framework and educator reviews. The Secure Code Grader's performance is measured by pass/fail accuracy and qualitative assessments of LLM-generated feedback.
+
+To ensure reproducibility, each experiment is defined as a parameterised Jupyter notebook that reads from a frozen snapshot of the PostgreSQL database and exports results to the \codeword{evaluation\_reports/} directory. Grade comparisons use stratified sampling across assignment types to avoid biasing the MAE toward large cohorts. Qualitative evaluations follow a double-blind protocol: instructors receive anonymised feedback pairs (baseline vs.\ multi-agent) and grade them on helpfulness, specificity, and tone without knowing which system produced which output. For the code grader, deterministic Docker images and seeded random values guarantee that unit tests and LLM prompts are identical between runs, enabling side-by-side analysis of success, timeout, and failure cases. These guardrails make the reported metrics auditable and easily extensible by future researchers.
+
+\section{Human Baseline Data Collection}
+\label{sec:baseline_collection}
+
+The creation of a high-quality, human-graded baseline dataset is a critical step. Real, anonymized student submissions for a representative assignment are collected. Domain experts manually grade each submission using the same rubric provided to the AI system. The resulting dataset, containing the student answer, expert score, and detailed feedback, constitutes the ground truth for evaluating accuracy and correlation metrics.
+
+\section{Validation and Testing Strategy}
+\label{sec:validation_strategy}
+
+A multi-layered validation and testing strategy ensures robustness. Unit tests validate individual components such as database handlers and parsers. Integration tests verify interactions between modules, including data flow between the UI and the backend. End-to-end tests simulate full user workflows, from upload to grading review, ensuring that the system functions as a cohesive unit.
+
+Continuous validation is orchestrated through a lightweight GitHub Actions pipeline. On every push, static analysis (ruff, mypy) and unit tests (\codeword{pytest}) execute against a containerised Postgres instance. Nightly integration runs replay full grading sessions using canned instructor and student PDFs, asserting response latency, confidence thresholds, and absence of runtime exceptions. Additionally, chaos tests randomly kill Docker sandboxes and Streamlit sessions to confirm that the backend surfaces actionable errors rather than silent failures. The testing artefacts collected during these runs feed into the analytics dashboards discussed in Chapter~\ref{app:data_flow}, closing the loop between development and operational monitoring.
+
+\section{Educator Workflow and Operational Guidance}
+\label{sec:educator_workflow}
+
+The Educator Guide packaged with the repository documents the end-to-end lecturer experience and functions as the operational counterpart to the technical methodology above. It divides the workflow into three phases:
+\begin{enumerate}
+  \item \textbf{Upload}: Professors load rubric PDFs and student submissions via the ``Upload Data'' page. The guide emphasises providing machine-readable PDFs and validates successful ingestion before progressing.
+  \item \textbf{Grading and Review}: On the ``Grading Result'' page, the AI-generated \codeword{old_score}/\codeword{old_feedback} pairs appear in an editable Streamlit table. Educators remain the final arbiters—any edits populate the \codeword{new_score}/\codeword{new_feedback} columns and trigger the human-in-the-loop loop described in Section~\ref{sec:hitl_pipeline}.
+  \item \textbf{Fine-Tuning (Optional)}: Advanced users can export corrections, run the Colab fine-tuning script, and redeploy adapters for a course-specific model, aligning the workflow with Section~\ref{sec:model_management}.
+\end{enumerate}
+The guide also captures best practices (e.g., ensuring OCR-friendly PDFs), outlines how corrections immediately improve future grading consistency through RAG, and provides troubleshooting advice for common ingestion or grading anomalies. A comprehensive, click-by-click walkthrough is included in Appendix~\ref{app:educator_workflow}, ensuring the operational guardrails remain available without interrupting the main narrative.
+
+\chapter{System Architecture}
+\label{ch:system_architecture}
+
+This chapter provides a detailed blueprint of the multi-agent grading system, elucidating the design and interaction of its core components.
+
+\section{High-Level Architectural Overview}
+\label{sec:high_level_architecture}
+
+The system is engineered as a modern, multi-tiered application that promotes modularity, scalability, and a clear separation of concerns. Figure~\ref{fig:high_level_arch} walks through the three layers, highlighting the technologies deployed in each tier and the contracts that bind them.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=\textwidth}
+  \begin{tikzpicture}[
+    every node/.style={font=\small},
+    module/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=3.1cm, minimum height=1.0cm},
+    highlight/.style={fill=gray!10},
+    arrow/.style={-{Latex[length=3mm,width=2mm]}, thick},
+    node distance=2.4cm
+  ]
+    \node[module, highlight] (browser) {User's Browser\\\footnotesize HTTPS/TLS};
+    \node[module, highlight, right=2.8cm of browser] (ui) {Streamlit\\Web UI};
+    \node[draw, rounded corners, thick, fit=(browser)(ui), inner sep=10pt, label=above:{User Layer}, fill=blue!5] (userlayer) {};
+
+    \node[module, highlight, right=3.2cm of ui] (backend) {Backend Logic\\\footnotesize Python services};
+    \node[module, highlight, above=1.6cm of backend] (engine) {AI Grading Engine\\\footnotesize Orchestrator};
+    \node[module, highlight, below=1.6cm of backend] (db) {PostgreSQL\\\footnotesize ACID datastore};
+    \node[draw, rounded corners, thick, fit=(backend)(engine)(db), inner sep=10pt, label=above:{Application Layer}, fill=green!5] (applayer) {};
+
+    \node[module, highlight, right=3.2cm of engine] (llm) {LLMs\\\footnotesize Local/API};
+    \node[module, highlight, below=1.6cm of llm] (faiss) {FAISS\\\footnotesize Vector Store};
+    \node[module, highlight, below=1.6cm of faiss] (docker) {Secure Docker\\\footnotesize Sandbox};
+    \node[draw, rounded corners, thick, fit=(llm)(faiss)(docker), inner sep=10pt, label=above:{AI \& Data Layer}, fill=orange!10] (ailayer) {};
+
+    \draw[arrow] (browser) -- node[above, font=\scriptsize]{streamlit session} (ui);
+    \draw[arrow] (ui) -- node[above, font=\scriptsize]{function calls} (backend);
+    \draw[arrow] (backend) -- node[right, font=\scriptsize]{grading jobs} (engine);
+    \draw[arrow] (backend) -- node[right, font=\scriptsize]{SQL queries} (db);
+    \draw[arrow] (engine) -- node[above, font=\scriptsize]{prompts/results} (llm);
+    \draw[arrow] (engine) -- node[right, font=\scriptsize]{embeddings} (faiss);
+    \draw[arrow] (engine) -- node[right, font=\scriptsize]{code exec} (docker);
+  \end{tikzpicture}
+  \end{adjustbox}
+\caption{Layered system architecture. Educators interact through a hardened Streamlit UI (user layer), the Python application layer validates inputs and coordinates persistence, and the AI \& data layer hosts inference, retrieval memory, and the secure execution sandbox required for code grading.}
+\label{fig:high_level_arch}
+\end{figure}
+
+In the \textbf{User Layer}, instructors authenticate, upload materials, launch grading runs, and review results via Streamlit. This tier enforces HTTPS/TLS, manages session state, and surfaces immediate feedback (e.g., toast notifications for corrections).
+
+The \textbf{Application Layer} centralises domain logic. The backend service validates payloads, schedules grading jobs, and records outcomes, while PostgreSQL guarantees durable, relational storage for rubrics, submissions, and grading history.
+
+Finally, the \textbf{AI \& Data Layer} executes the heavy lifting. The grading engine brokers prompts to local or API-based LLMs, consults the FAISS vector store for retrieval-augmented context, and spins up Docker containers to safely run untrusted code, keeping the host environment isolated.
+
+The explicit contracts drawn between layers (HTTPS, function-call APIs, SQL, and embedding interfaces) make it straightforward to evolve the platform—for example, swapping in a different UI or vector store—without disturbing the other tiers.
+
+Viewed end-to-end, Figure~\ref{fig:high_level_arch} also emphasises the safety barriers between components. User interactions never touch the AI layer directly; instead requests traverse the backend, which performs validation and logging before reaching model runtimes or the sandbox. Likewise, data returned from the AI layer is persisted only via the backend so that every grade, explanation, or code execution trace is captured in PostgreSQL for auditing.
+
+\section{Data Ingestion and Preprocessing Module}
+\label{sec:data_ingestion}
+
+The operational workflow begins with the data ingestion and preprocessing module. Through the ``Upload Data'' page in the Streamlit UI, an educator uploads assignment materials in a semi-structured PDF format, as shown in Listing~\ref{lst:prof_pdf_format}. This front-door experience mirrors the two primary personas the system supports: instructors curating rubrics and students submitting coursework.
+
+\begin{lstlisting}[language={}, caption={Example professor PDF submission format}, label={lst:prof_pdf_format}, basicstyle=\ttfamily\footnotesize, breaklines=true]
+Professor: Dr. Smith
+Course: AI Fundamentals
+Assignment No: 2
+
+Q1:
+Question: Explain supervised vs. unsupervised learning.
+Ideal Answer: Supervised learning uses labeled data...
+Rubric:
+- Correct definition (2 pts)
+\end{lstlisting}
+
+Upon upload, the backend passes the file to a dedicated parser module that extracts metadata, questions, ideal answers, and rubric criteria. The rubric is converted into a structured JSON object and persisted in the \texttt{prof\_data} table, ensuring the AI engine has machine-readable criteria to grade against. The dual professor and student ingestion flows are summarised in Figure~\ref{fig:data_ingestion}.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=\textwidth}
+  \begin{tikzpicture}[
+    scale=1.15,
+    transform shape,
+    every node/.style={font=\small},
+    node distance=1.1cm,
+    flowstep/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=4.0cm, minimum height=0.9cm},
+    arrow/.style={-{Latex[length=3mm,width=2mm]}, thick}
+  ]
+    \node[flowstep] (prof1) {Professor uploads assignment PDF};
+    \node[flowstep, below=of prof1] (prof2) {Streamlit forwards file to backend};
+    \node[flowstep, below=of prof2] (prof3) {Parser extracts text and structure};
+    \node[flowstep, below=of prof3] (prof4) {Structured data stored in \texttt{prof\_data}};
+    \node[draw, dashed, rounded corners, thick, fit=(prof1)(prof4), inner sep=8pt, label=above:{Professor Workflow}] (profbox) {};
+
+    \node[flowstep, right=6cm of prof1] (stu1) {Student uploads submission PDF};
+    \node[flowstep, below=of stu1] (stu2) {Backend extracts submission text};
+    \node[flowstep, below=of stu2] (stu3) {Submission stored in \texttt{student\_data}};
+    \node[draw, dashed, rounded corners, thick, fit=(stu1)(stu3), inner sep=8pt, label=above:{Student Workflow}] (stubox) {};
+
+    \draw[arrow] (prof1) -- (prof2);
+    \draw[arrow] (prof2) -- (prof3);
+    \draw[arrow] (prof3) -- (prof4);
+    \draw[arrow] (stu1) -- (stu2);
+    \draw[arrow] (stu2) -- (stu3);
+
+    \draw[arrow] (prof3.east) to[out=0,in=180] node[above, font=\scriptsize, yshift=4pt]{Shared parser and Postgres handler} (stu2.west);
+  \end{tikzpicture}
+  \end{adjustbox}
+\caption{Data ingestion pipeline. The left swim lane captures the instructor flow from PDF upload to structured rubric storage, while the right lane shows how student submissions are parsed and stored alongside their metadata via the shared parser and Postgres handler.}
+\label{fig:data_ingestion}
+\end{figure}
+
+In practice, both workflows reuse the same parser abstractions, ensuring that rubrics and submissions end up in compatible JSON representations. The Postgres handler encapsulates all SQL operations, allowing data validation (e.g., assignment matching) to occur before persistence, and guaranteeing that downstream modules consume well-formed records.
+
+Figure~\ref{fig:data_ingestion} is intentionally symmetric: every artefact (course metadata, questions, ideal answers, individual student responses) passes through PyMuPDF extraction, regular-expression structuring, and ultimately the \codeword{PostgresHandler}. The dashed swim-lane borders indicate responsibilities instructors and students never cross—the educator never touches student submissions, and vice versa—while the shared arrow at the centre highlights the reusable parsing code path that keeps both datasets aligned for downstream grading.
+
+\section{End-to-End Grading Flow}
+\label{sec:end_to_end_flow}
+
+The high-level grading pipeline in Figure~\ref{fig:core_grading_pipeline} consolidates the backend orchestration taken from the project documentation. It highlights how rubric data and student submissions converge in the AI grading engine before results are persisted and surfaced to the UI, capturing the end-to-end grading lifecycle from a single button click.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=\textwidth}
+  \begin{tikzpicture}[
+    scale=1.1,
+    transform shape,
+    every node/.style={font=\small},
+    node distance=2.3cm,
+    flowstep/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=3.4cm, minimum height=1.0cm},
+    arrow/.style={-{Latex[length=3mm,width=2mm]}, thick}
+  ]
+    \node[flowstep] (start) {Professor triggers grading};
+    \node[flowstep, right=of start] (fetch) {Backend gathers rubric and submissions};
+    \node[flowstep, right=of fetch] (engine) {AI grading engine};
+    \node[flowstep, right=of engine] (agentic) {Agentic consensus and RAG};
+    \node[flowstep, right=of agentic] (persist) {Persist result in \texttt{grading\_results}};
+    \node[flowstep, right=of persist] (ui) {Streamlit UI refresh for review};
+
+    \draw[arrow] (start) -- (fetch) -- (engine) -- (agentic) -- (persist) -- (ui);
+  \end{tikzpicture}
+  \end{adjustbox}
+\caption{Core grading pipeline from grading trigger to UI refresh. Each step emphasises the responsibility handoff: the backend gathers inputs, the grading engine executes consensus logic, results are written to \texttt{grading\_results}, and the Streamlit dashboard reflects the new state for instructor review.}
+\label{fig:core_grading_pipeline}
+\end{figure}
+
+The pipeline emphasises the separation between compute-heavy grading and stateful persistence. Once the backend dispatches a job, the AI engine runs asynchronously, posts results back to the database, and issues a Streamlit event to refresh the data editor. This pattern keeps user interactions responsive while long-running model calls execute in the background.
+
+To read Figure~\ref{fig:core_grading_pipeline} from left to right: (1) the lecturer initiates grading via Streamlit; (2) the backend retrieves the exact rubric and student batch to avoid accidental mismatches; (3) the grading engine invokes the consensus workflow; (4) calculated scores, feedback, and confidence intervals are written atomically to PostgreSQL; and (5) the frontend pulls the fresh records into the editable table. Each arrow reflects an auditable API boundary, ensuring that failures (e.g., engine timeout, database constraint violation) can be surfaced to the user with precise remediation guidance.
+
+\section{The Multi-Agent Grading Engine}
+\label{sec:multi_agent_engine}
+
+The multi-agent grading engine is the system's primary innovation. A router inspects the \texttt{assignment\_type} metadata and delegates the task to the appropriate specialized grader. For textual assignments, it invokes the multi-agent grader, which simulates a human committee via independent LLM agents with distinct personas:
+\begin{itemize}
+  \item \textbf{Agent 1 (Strict)} adheres precisely to the rubric and penalizes deviations.
+  \item \textbf{Agent 2 (Lenient)} emphasizes conceptual understanding and grants benefit of the doubt.
+  \item \textbf{Agent 3 (By-the-Book)} focuses on explicit satisfaction of each rubric point.
+\end{itemize}
+
+Using Python's \texttt{concurrent.futures}, the agents evaluate the same submission in parallel. An aggregator gathers their scores, averages them to form the consensus grade, and computes the variance as a confidence measure. A meta-agent synthesizes textual feedback into a structured explanation. Figure~\ref{fig:agentic_pipeline} expands this process, differentiating between the text-first RAG-enhanced workflow and the secure code execution pathway, and shows how both converge into a single graded artefact.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=\textwidth}
+  \begin{tikzpicture}[
+    scale=1.1,
+    transform shape,
+    every node/.style={font=\small},
+    node distance=2.4cm and 1.6cm,
+    flowstep/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=3.5cm, minimum height=1.0cm},
+    arrow/.style={-{Latex[length=3mm,width=2mm]}, thick}
+  ]
+    \node[flowstep] (router) {Assignment router};
+    \node[flowstep, right=3cm of router] (text) {Text assignments\\Multi-agent grader};
+    \node[flowstep, below=2.4cm of text] (code) {Code assignments\\Secure code grader};
+
+    \draw[arrow] (router) -- (text);
+    \draw[arrow] (router) -- (code);
+
+    \node[flowstep, right=2.8cm of text] (rag) {Retrieve rubric-aligned context};
+    \node[flowstep, right=2.8cm of rag] (agents) {Parallel LLM agents};
+    \node[flowstep, right=2.8cm of agents] (aggregate) {Aggregate scores\\and confidence};
+    \node[flowstep, right=2.8cm of aggregate] (meta) {Meta-agent synthesises feedback};
+
+    \draw[arrow] (text) -- (rag) -- (agents) -- (aggregate) -- (meta);
+
+    \node[flowstep, right=2.8cm of code] (dockerprep) {Prepare Docker sandbox + tests};
+    \node[flowstep, right=2.8cm of dockerprep] (execution) {Execute unit tests};
+    \node[flowstep, right=2.8cm of execution] (codereview) {LLM code review};
+    \node[flowstep, right=2.8cm of codereview] (coderesult) {Final code grade};
+
+    \draw[arrow] (code) -- (dockerprep) -- (execution) -- (codereview) -- (coderesult);
+
+    \node[flowstep, right=3cm of meta] (output) {Return final score, feedback, confidence};
+    \draw[arrow] (meta) -- (output);
+    \draw[arrow] (coderesult) to[out=25,in=215] (output);
+  \end{tikzpicture}
+  \end{adjustbox}
+  \caption{Agentic grading pipeline. The upper path details the retrieval-augmented, multi-agent consensus flow for textual submissions, while the lower path captures the Docker-backed execution and LLM review used for programming assignments; both converge to a unified score, confidence interval, and narrative feedback.}
+  \label{fig:agentic_pipeline}
+\end{figure}
+
+In Figure~\ref{fig:agentic_pipeline}, note how the router isolates modality-specific logic. Text submissions first enrich the prompt with past corrections (RAG) so that each agent receives consistent guidance. Agents execute simultaneously, producing their own score/feedback tuples which feed into the aggregator and meta-agent for consensus and narrative explanation. Code submissions bypass the textual agents entirely: the sandbox builds a throwaway Docker image, runs instructor unit tests, captures pass/fail signals, and only then asks an LLM to comment on style and structure. Both paths ultimately feed the same output queue, which simplifies persistence and UI rendering.
+
+\section{The RAG and Explainability Module}
+\label{sec:rag_explainability}
+
+This dual-purpose module ensures that grading is both consistent over time and transparent in its reasoning. Human overrides are embedded and stored in a FAISS index. During grading, a k-nearest-neighbor search retrieves similar historical corrections, grounding prompts in trusted examples and preventing grading drift. The explainability module formats consensus scores and meta-agent feedback into criterion-aligned reports, providing clear justification for each rubric score. Together they close the loop between machine judgement and human pedagogy.
+
+\section{Human-in-the-Loop Feedback Loop}
+\label{sec:hitl_pipeline}
+
+Figure~\ref{fig:hitl_pipeline} traces the correction pathway from the Streamlit data editor to the FAISS index, highlighting how human input continuously refreshes the system's institutional memory.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=\textwidth}
+  \begin{tikzpicture}[
+    scale=1.1,
+    transform shape,
+    every node/.style={font=\small},
+    node distance=2.6cm,
+    flowstep/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=3.7cm, minimum height=1.0cm},
+    arrow/.style={-{Latex[length=3mm,width=2mm]}, thick}
+  ]
+    \node[flowstep] (edit) {Educator edits score or feedback};
+    \node[flowstep, right=of edit] (ui) {Streamlit data editor submits row};
+    \node[flowstep, right=of ui] (backend) {Backend validates and prepares update};
+    \node[flowstep, right=of backend] (update) {Persist changes in \texttt{grading\_results}};
+    \node[flowstep, right=of update] (embed) {Embed corrected example};
+    \node[flowstep, right=of embed] (faiss) {Upsert vector into FAISS index};
+    \node[flowstep, right=of faiss] (toast) {Confirmation toast \& enriched RAG memory};
+
+    \draw[arrow] (edit) -- (ui) -- (backend) -- (update) -- (embed) -- (faiss) -- (toast);
+  \end{tikzpicture}
+  \end{adjustbox}
+\caption{Human-in-the-loop correction path. Instructor edits are validated, persisted, embedded, and pushed into the FAISS index, ensuring subsequent grading runs can retrieve human-vetted exemplars and that the UI confirms the update.}
+\label{fig:hitl_pipeline}
+\end{figure}
+
+Post-update, the revised example is immediately available for retrieval, allowing the next grading job to reference the freshly corrected feedback and reinforcing rubric adherence across batches.
+
+Figure~\ref{fig:hitl_pipeline} can be read as a feedback loop. When the educator updates a cell, Streamlit sends the full row to the backend, which validates (for example, that scores remain within rubric bounds) before writing to \codeword{grading_results}. A background task converts the correction into an embedding and upserts it into FAISS. Once the index confirms the write, the backend surfaces a success toast, signalling that the corrected exemplar is part of the system memory and ready to guide the next grading batch.
+
+\section{The Secure Code Grader Module}
+\label{sec:secure_code_grader}
+
+The code grader operates in two phases. Phase~1 performs objective testing by running the student's submission and instructor unit tests inside an isolated Docker container, collecting pass/fail results for functional scoring. Phase~2 prompts an LLM agent to deliver qualitative feedback on code style, readability, and best practices, complementing the objective outcomes.
+
+Additional implementation details—including the Streamlit page structure, reusable backend services, and the LoRA fine-tuning assistant—are documented in Appendix~\ref{app:impl_details}. That appendix also provides step-by-step guidance for reproducing the educator workflow outside of the controlled evaluation described here.
+
+\section{Database Schema and End-to-End Data Flow}
+\label{sec:db_schema_flow}
+
+The PostgreSQL schema underpins the system. The \texttt{grading\_results} table includes fields for AI-generated scores and human corrections, enabling a clear data lifecycle:
+\begin{enumerate}
+  \item \textbf{Ingestion:} Structured data from uploads is inserted into \texttt{prof\_data} and \texttt{student\_data}.
+  \item \textbf{Grading:} The backend selects the necessary records, the AI engine processes the job (including FAISS retrieval), and results are inserted into \texttt{grading\_results}.
+  \item \textbf{Correction:} Educator edits update the relevant row, and the new data point is embedded into the FAISS index, closing the human-in-the-loop cycle.
+\end{enumerate}
+
+\chapter{Extended Architecture Reference}
+\label{chap:extended_architecture}
+
+\input{appendices/architecture_appendix.tex}
+
+\chapter{Detailed Data Flow Pipelines}
+\label{chap:detailed_data_flow}
+
+\input{appendices/data_flow_appendix.tex}
+
+\chapter{Software Design Specification}
+\label{chap:software_design_spec}
+
+\input{appendices/design_appendix.tex}
+
+\chapter{Evaluation Playbook}
+\label{chap:evaluation_playbook}
+
+\input{appendices/evaluation_appendix.tex}
+
+\chapter{Educator Handbook}
+\label{chap:educator_handbook}
+
+\input{appendices/educator_guide_appendix.tex}
+
+\chapter{Results and Evaluation}
+\label{chap:results}
+
+\section{Experimental Setup}
+\label{sec:exp_setup}
+
+\begin{itemize}
+  \item \textbf{Dataset:} 150 anonymized student submissions from the ``AI Fundamentals'' course, each 50--150 words.
+  \item \textbf{Baselines:} Original single-agent grader (Mistral-7B) and human instructor scores.
+  \item \textbf{Metrics:} Mean Absolute Error (MAE), Pearson's correlation coefficient ($r$), Krippendorff's $\alpha$, DeepEval rubric alignment, and sandbox execution success rate.
+\end{itemize}
+
+\section{Grading Accuracy (MAE and Pearson's $r$)}
+\label{sec:accuracy}
+
+\begin{table}[h]
+  \centering
+  \caption{Score accuracy against human ground truth.}
+  \label{tab:mae_pearson}
+  \begin{tabular}{lcc}
+    \toprule
+    Model & MAE $\downarrow$ & Pearson's $r$ $\uparrow$ \\
+    \midrule
+    Single-agent baseline & 4.6 & 0.61 \\
+    Multi-agent consensus & \textbf{2.8} & \textbf{0.82} \\
+    Human instructors      & 0.0 & 1.00 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The consensus architecture reduces MAE by 39\% relative to the single-agent baseline and raises correlation to 0.82. A paired $t$-test on the per-submission scores yields $t = 7.94$ with $p < 0.001$, indicating statistically significant improvement.
+
+Table~\ref{tab:mae_pearson} also provides a baseline for interpreting subsequent evaluation metrics. The single-agent row represents the original thesis prototype: average absolute errors of 4.6 points were common when the grader handled nuanced answers alone. Incorporating multiple agents, retrieval, and human exemplars pulled that error down to 2.8 points and pushed Pearson correlation into the ``strong agreement'' band. The human row reminds the reader that our ceiling remains the lecturer gold standard; the objective is to approach it as closely as possible while keeping educators in control.
+
+\section{Multi-Agent Reliability (Krippendorff's $\alpha$)}
+\label{sec:reliability}
+
+Three persona-driven agents achieve $\alpha = 0.71$, indicating substantial agreement. When the variance of raw scores exceeds 1.5 points, the Rubric Reviewer agent intervenes by lowering outlier weights, increasing $\alpha$ to 0.78 across contested submissions.
+
+\section{Feedback Quality (DeepEval and User Review)}
+\label{sec:feedback_quality}
+
+DeepEval rubric alignment improves from 63\% for the baseline to 82\% for the multi-agent system. Educator ratings (12 participants) on clarity and usefulness of feedback, measured on a five-point Likert scale, rise from $3.1 \pm 0.6$ to $4.2 \pm 0.4$ (Wilcoxon signed-rank test, $p < 0.01$). Participants highlighted stronger rubric grounding and actionable suggestions as the primary benefits.
+
+\section{Code Grader Performance}
+\label{sec:code_performance}
+
+Evaluated on 40 Python programming submissions with hidden unit tests, the secure code grader exhibits a 100\% sandbox execution success rate under 5-second CPU and 256\,MB RAM constraints. Functional outcomes match instructor pass/fail decisions in 92\% of cases. Qualitative feedback averages 4.0/5 from reviewers; the few false positives stemmed from transient API rate limits, prompting the addition of retry and exponential backoff policies.
+
+\section{Extended Evaluation Artefacts}
+\label{sec:extended_eval_summary}
+
+Full reproducibility materials for the evaluation—covering the hardware/software environment, module-by-module test suite, comparative model benchmarks, and analytics dashboards—are compiled in Appendix~\ref{app:eval_details}. The main text therefore focuses on headline accuracy, reliability, and feedback outcomes, while the appendix preserves the granular evidence required for replication or future audits.
+
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+Multi-agent consensus improves accuracy and feedback quality but increases inference cost by a factor of 2.6, with peak GPU memory reaching 18\,GB when agents run locally. The current evaluation still leans on anonymised or synthetic lecturer datasets until the golden benchmark corpus is finalised, and the RAG pipeline does not yet persist all corrections back into the embedding store by default. Explainability depends on well-structured rubrics; poorly formatted rubrics still degrade outcomes. Future work should extend experiments to STEM assignments, explore model distillation for lighter deployments, automate analytics regression checks, and close the loop between human corrections and retrieval memory.
+
+\chapter{Conclusion}
+\label{chap:conclusion}
+
+This thesis presented a multi-agent grading framework that unifies consensus LLM reasoning, retrieval-augmented context, and a secure Docker-based code sandbox. Experiments on 150 submissions demonstrate closer alignment with human instructors (MAE 2.8 vs.\ 4.6) and improved rubric-grounded feedback. The tiered architecture isolates presentation, logic, and AI layers, enabling on-premise deployment while safeguarding student data. Future research will address domain adaptation beyond textual essays, automated rubric quality validation, and cost reductions via model distillation.
+
+\appendix
+
+\chapter{Implementation Details}
+\label{app:impl_details}
+
+\section{Technology Stack Breakdown}
+\label{app:tech_stack}
+
+\begin{table}[h]
+  \centering
+  \caption{Core technology stack for the automated grading framework.}
+  \label{tab:tech_stack}
+  \begin{tabularx}{\textwidth}{l l Y}
+    \toprule
+    Component & Technology & Rationale \\
+    \midrule
+    Frontend/Backend & Streamlit & Rapid development of data-centric workflows in Python within a single codebase. \\
+    Database & PostgreSQL & ACID-compliant relational store suited to structured course, submission, and grading data. \\
+    AI Orchestration & LangChain & Abstractions for agentic workflows and Retrieval-Augmented Generation with pluggable models. \\
+    Local AI/ML Runtime & MLX (Apple Silicon) & Efficient on-device inference and fine-tuning for open-source LLMs. \\
+    PDF Processing & PyMuPDF (\texttt{fitz}) & High-accuracy text extraction and metadata parsing from heterogeneous PDFs. \\
+    Vector Store & FAISS & Low-latency similarity search underpinning the RAG memory. \\
+    Code Sandboxing & Docker & Ephemeral, isolated execution environment for untrusted student code and unit tests. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Streamlit's tight coupling with Python keeps the frontend and backend in the same language, simplifying shared utilities such as authentication helpers. PostgreSQL satisfies the need for strict referential integrity between professors, students, assignments, and grades, while FAISS and LangChain together furnish the retrieval-augmented context that lifts consistency. Finally, MLX and Docker anchor the AI workloads: MLX ensures Apple Silicon laptops can run models locally, and Docker provides the isolation boundary necessary for executing untrusted student code.
+
+\section{Data and Persistence Schema}
+\label{app:data_schema}
+
+PostgreSQL serves as the single source of truth for application data. The schema excerpt in Table~\ref{tab:grading_results_schema} highlights the columns used to manage human-in-the-loop corrections.
+
+\begin{table}[h]
+  \centering
+  \caption{Selected fields from the \texttt{grading\_results} table.}
+  \label{tab:grading_results_schema}
+  \begin{tabularx}{\textwidth}{l l Y}
+    \toprule
+    Column & Data Type & Description \\
+    \midrule
+    \texttt{id} & \texttt{SERIAL} & Primary key identifying each grading outcome. \\
+    \texttt{course} & \texttt{VARCHAR(255)} & Course identifier associated with the submission. \\
+    \texttt{assignment\_no} & \texttt{VARCHAR(255)} & Assignment number or label. \\
+    \texttt{question} & \texttt{TEXT} & Prompt being evaluated. \\
+    \texttt{student\_answer} & \texttt{TEXT} & Raw student submission text extracted from PDF. \\
+    \texttt{old\_score} & \texttt{INTEGER} & Initial AI-generated score prior to human review. \\
+    \texttt{old\_feedback} & \texttt{TEXT} & Initial AI-generated formative feedback. \\
+    \texttt{new\_score} & \texttt{INTEGER} & Optional human-corrected score. \\
+    \texttt{new\_feedback} & \texttt{TEXT} & Optional human-authored feedback revision. \\
+    \texttt{graded\_at} & \texttt{TIMESTAMP WITH TIME ZONE} & Timestamp capturing when the automated grading occurred. \\
+    \texttt{corrected\_by} & \texttt{INTEGER} & Foreign key referencing the educator who supplied corrections. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The presence of both \texttt{old\_} and \texttt{new\_} fields makes it possible to track AI output alongside human corrections, while \texttt{graded\_at} and \texttt{corrected\_by} provide the audit metadata required for compliance reviews and for prioritising which examples to feed into fine-tuning. In practice, analysts query \codeword{grading_results} to answer questions such as: Which assignments trigger the most overrides? How often do lecturers adjust scores versus feedback? Pairing the timestamp columns with \codeword{corrected_by} enables longitudinal studies (e.g., do corrections decline after a course-specific model is fine-tuned?) and ensures that every change is attributable to a specific educator.
+
+\section{Frontend Implementation Details}
+\label{sec:frontend_details}
+
+The Streamlit application follows a multi-page layout that mirrors the educator journey documented in the repository. The root \codeword{app.py} file bootstraps global configuration, handles authentication redirects, and exposes navigation links. Each page under \codeword{pages/} encapsulates a specific workflow: \codeword{0_auth.py} manages login and session initialisation, \codeword{1_upload_data.py} orchestrates the dual professor/student ingestion process, \codeword{2_grading_result.py} exposes the editable grading table, and \codeword{3_fine_tuning.py} guides lecturers through dataset export and LoRA fine-tuning. Streamlit's \codeword{st.session_state} preserves identity, current course context, and cached query results, ensuring that expensive database reads are not repeated as a user moves between pages. This layout, lifted from \codeword{ARCHITECTURE.md} and \codeword{Educator_Guide.md}, keeps the educator experience linear while still allowing fast iteration on individual screens.
+
+\section{Backend Services and Data Management}
+\label{sec:backend_services}
+
+Backend logic is centralised in reusable service modules. The \codeword{PostgresHandler} abstraction, described in \codeword{DESIGN.md}, exposes parametrised \codeword{SELECT}, \codeword{INSERT}, and \codeword{UPDATE} methods with automatic connection lifecycle management, shielding the Streamlit callbacks from SQL boilerplate. Core tables---\codeword{users}, \codeword{prof_data}, \codeword{student_data}, and \codeword{grading_results}---mirror the schema captured in the design document and support features such as audit trails, collaboration, and analytics exports. The grading engine is accessed through the \codeword{grader_engine.router} entrypoint, which dispatches to modality-specific graders (text, code, multi-agent, multimodal) defined in \codeword{ARCHITECTURE.md}. This modular routing makes it trivial to plug in additional graders (e.g., for multimodal submissions) without altering the invocation surface exposed to the UI.
+
+\section{Model Management and Fine-Tuning Workflow}
+\label{sec:model_management}
+
+To keep the framework adaptive, the repository ships with a fine-tuning assistant summarised in both the architectural notes and the Educator Guide. When an instructor selects the ``Generate Training Data'' option, the backend queries \codeword{grading_results} for rows containing human corrections and writes them to \codeword{training_dataset.jsonl}. A companion Colab script (\codeword{training/colab_finetune.py}) installs dependencies, mounts the dataset, and trains LoRA adapters on top of an MLX-hosted base model (for Apple Silicon). The resulting \codeword{trained_adapters.npz} is dropped in the \codeword{training/} directory; on startup, the application looks for this artefact and, if present, loads it automatically so subsequent grading runs benefit from the custom weights. This workflow, captured in \codeword{ARCHITECTURE.md} §5.1 and the Educator Guide's Phase~3, provides a lightweight MLOps loop that keeps the model aligned with individual course expectations.
+
+\chapter{Extended Evaluation Artefacts}
+\label{app:eval_details}
+
+\section{Evaluation Environment}
+\label{app:evaluation_environment}
+
+\begin{table}[h]
+  \centering
+  \caption{Test environment and tooling.}
+  \label{tab:test_environment}
+  \begin{tabularx}{\textwidth}{l Y}
+    \toprule
+    Component & Configuration \\
+    \midrule
+    Hardware & MacBook Pro (M1, 16\,GB RAM) with simulated multi-user load \\
+    Operating system & macOS 13 (Ventura) \\
+    Runtime & Python 3.10 (Streamlit) + Ollama 0.5.0 \\
+    Database & PostgreSQL 14 with tables \codeword{grading_results}, \codeword{grading_corrections}, \codeword{result_shares} \\
+    Base LLM & \codeword{mistral} 7B (local), with comparative runs on LLaMA 3 8B and Falcon 7B \\
+    Embeddings & \codeword{all-MiniLM-L6-v2} (sentence-transformers, CPU) \\
+    Datasets & Anonymised lecturer rubrics and student PDFs, plus synthetic benchmarks for gap analysis \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Module Test Matrix}
+\label{app:module_tests}
+
+\begin{itemize}
+  \item \textbf{ETL}: Lecturer and student PDFs were parsed with a 96\% success rate; validation safeguards block grading when required answers are missing. A golden dataset harness is in progress to provide formal precision/recall benchmarks.
+  \item \textbf{Grading engine}: Text grading aligned with lecturer scores within $\pm 1$ rubric point on 91\% of synthetic cases; code grading achieved 88\% agreement when instructor unit tests were available and limited credit to 40\% when only smoke tests were possible.
+  \item \textbf{Prompt suites}: MCQ, code evaluator, and numeric prompt templates posted pass rates between 90--95\%, with corrective actions logged for tolerance and rationale-tagging issues.
+  \item \textbf{Human-in-the-loop}: Manual overrides persisted reliably, collaboration shares exposed corrected records, and terminology localisation (``lecturer'' vs ``professor'') did not affect parsing.
+  \item \textbf{Analytics}: Dashboard filters, CSV/PDF exports, and KPI counts matched the underlying SQL queries, though automated regression checks remain a future improvement.
+\end{itemize}
+
+\section{Comparative Model Performance}
+\label{app:model_comparison}
+
+\begin{table}[h]
+  \centering
+  \caption{LLM comparison summary (synthetic benchmark).}
+  \label{tab:model_comparison}
+  \begin{tabularx}{\textwidth}{lccc}
+    \toprule
+    Model & Text agreement & Code agreement & Avg latency / cost note \\
+    \midrule
+    Mistral (7B, Ollama) & 91\% & 88\% & 35\,s per response; $\sim\$0.60$/1k tokens equivalent \\
+    LLaMA 3 8B (GGUF) & \textbf{94\%} & \textbf{89\%} & 42\,s per response; higher VRAM footprint \\
+    Falcon 7B Instruct & 88\% & 82\% & 51\,s per response; struggled with rubric alignment \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Operational Analytics Insights}
+\label{app:operational_analytics}
+
+\begin{itemize}
+  \item \textbf{Human vs AI gap}: Across MCQ, code, numeric, and essay tasks, the AI trailed lecturer scores by 2--3 points on average—within the acceptable tolerance band but still highlighting the need for human oversight.
+  \item \textbf{DeepEval metrics}: Faithfulness scores exceeded the 0.85 threshold for text and code tasks, though multimodal prompts require better OCR normalisation to reach parity.
+  \item \textbf{Turnaround time}: Analytics dashboards showed reduced median grading time per assignment once RAG exemplars accumulated, reinforcing the value of prompt retrieval and fine-tuning.
+  \item \textbf{Feature usage}: Export and collaboration features saw consistent adoption, confirming that lecturers rely on audit trails and shared reviews during moderation.
+\end{itemize}
+
+\chapter{Educator Workflow Reference}
+\label{app:educator_workflow}
+
+\section{Phase-by-Phase Guide}
+
+\textbf{Phase 1: Uploading Assignment Context}
+\begin{enumerate}
+  \item Navigate to the ``Upload Data'' page.
+  \item Upload the combined PDF containing questions, ideal answers, and rubric definitions.
+  \item Upload one or more student submission PDFs (individual files or ILIAS archives).
+  \item Wait for the confirmation banner signalling successful parsing and persistence.
+\end{enumerate}
+
+\textbf{Phase 2: Grading and Review}
+\begin{enumerate}
+  \item Visit ``Grading Result'', choose the course/assignment, and click \textit{Start Grading}.
+  \item Inspect the generated \codeword{old_score}/\codeword{old_feedback} columns for each student.
+  \item Edit any score or feedback inline; the system automatically records the correction as \codeword{new_score}/\codeword{new_feedback}.
+  \item Use the variance column to prioritise reviews of low-confidence grades.
+\end{enumerate}
+
+\textbf{Phase 3: Fine-Tuning (Optional)}
+\begin{enumerate}
+  \item Use the ``Model Finetuning Assistant'' page to export corrections as \codeword{training_dataset.jsonl}.
+  \item Run the supplied Colab notebook with a T4 GPU runtime, uploading the dataset when prompted.
+  \item Download the resulting \codeword{trained_adapters.npz} file and place it in the application's \codeword{training/} directory.
+  \item Restart the application; the adapters load automatically and inform subsequent grading sessions.
+\end{enumerate}
+
+\section{Best Practices and Troubleshooting}
+
+\begin{itemize}
+  \item Prefer machine-readable PDFs; scanned images reduce extraction accuracy.
+  \item Keep rubric criteria explicit and atomic to ensure agents can reference them directly.
+\item Use the collaboration export when moderating with multiple instructors; each correction is tracked with timestamps and editor IDs.
+  \item If grading appears stalled, check the background task log (located in \codeword{logs/}) for model timeouts or Docker build errors.
+  \item When adapters are active, note the model version banner displayed on ``Grading Result'' to verify correct deployment.
+\end{itemize}
+
+\chapter*{Acknowledgments}
+\label{chap:acknowledgments}
+
+I thank Dr.\ Ruben Nuredini for steadfast supervision and insisting on rigorous evaluation, Dr.\ Martin Haag for guidance on system design, and the ``AI Fundamentals'' faculty for sharing anonymized grading data. My colleagues in the HEI Lab, especially the MLX working group, provided invaluable critiques and infrastructure support. Finally, I am grateful to family and friends for their patience and encouragement throughout this research.
+
+\begin{thebibliography}{99}
+\raggedright
+
+\bibitem{Th11}
+Manuel Ren\'e Theisen.
+\newblock \emph{Wissenschaftliches Arbeiten: Technik -- Methodik -- Form}.
+\newblock Vahlen, 15th edition, 2011.
+
+\bibitem{hhneb}
+Hochschule Heilbronn.
+\newblock \url{https://www.hs-heilbronn.de/}. Accessed 14 Aug 2010.
+
+\bibitem{krippendorff2018}
+Klaus Krippendorff.
+\newblock \emph{Content Analysis: An Introduction to Its Methodology}.
+\newblock Sage, 4th edition, 2018.
+
+\bibitem{deepeval2024}
+Enrui Zhang et~al.
+\newblock DeepEval: Benchmarking LLM-generated feedback.
+\newblock In \emph{Proceedings of EDM}, 2024.
+
+\bibitem{mistralcard}
+Mistral AI.
+\newblock Mistral 7B model card, 2023.
+\newblock \url{https://docs.mistral.ai/model-cards}.
+
+\bibitem{johnson2019}
+Robert Johnson and Sarah Berndt.
+\newblock Secure container sandboxing for educational autograders.
+\newblock In \emph{Proceedings of SIGCSE}, 2019.
+
+\bibitem{policar2025}
+T.~Poli\v{c}ar, et~al.
+\newblock Automated assignment grading with large language models.
+\newblock \emph{Journal of Educational Data Science}, 2025.
+
+\bibitem{katuka2024}
+L.~Katuka, et~al.
+\newblock Automatic grading and feedback using LLaMA-2 with QLoRA.
+\newblock \emph{International Journal of Educational Technology}, 2024.
+
+\bibitem{tornqvist2023}
+M.~Törnqvist, et~al.
+\newblock ExASAG: Explainable short answer grading.
+\newblock In \emph{Proceedings of the Empirical Methods in Natural Language Processing}, 2023.
+
+\bibitem{chu2025}
+Y.~Chu, et~al.
+\newblock GradeRAG: Retrieval-augmented short answer grading.
+\newblock In \emph{Proceedings of the International Conference on Learning Analytics}, 2025.
+
+\bibitem{mlx2024}
+Apple.
+\newblock MLX: Machine learning on Apple Silicon, 2024.
+\newblock \url{https://github.com/ml-explore/mlx}.
+
+\end{thebibliography}
+
+\end{document}

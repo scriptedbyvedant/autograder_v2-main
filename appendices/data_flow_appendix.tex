@@ -1,0 +1,203 @@
+
+\section{Detailed Data Flow Diagrams}
+
+This document provides a series of detailed diagrams illustrating the data flow through every major pipeline in the Automated Grading Framework. 
+
+\medskip\hrule\medskip
+
+\subsection{1. Data Ingestion Pipeline (ETL)}
+
+This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs into structured, queryable data in the PostgreSQL database. 
+
+\begin{verbatim}
+sequenceDiagram
+    participant Prof as Professor
+    participant Stu as Student
+    participant UI as Streamlit UI (st.file_uploader)
+    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Backend as Backend Logic (1_upload_data.py)
+    participant DB as PostgresHandler
+    participant PG as PostgreSQL
+
+    rect rgb(224,255,255)
+        Prof->>UI: Upload professor PDF (questions, rubric)
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>Parser: Parse into structured data
+        Parser-->>Backend: Return JSON structure
+        Backend->>DB: execute_query INSERT into prof_data
+        DB->>PG: SQL insert
+    end
+
+    rect rgb(255,250,205)
+        Stu->>UI: Upload submission PDF
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>DB: execute_query INSERT into student_data
+        DB->>PG: SQL insert
+    end
+\end{verbatim}
+
+\textbf{Description:} 
+
+The ingestion process happens in two distinct (but similar) workflows: 
+
+\begin{itemize}
+  \item \textbf{Professor Workflow:}
+\begin{enumerate}
+  \item The professor uploads a PDF containing the assignment details.
+  \item The backend uses \codeword{PyMuPDF} to extract text and regular expressions (\codeword{re}) to parse it into a structured format (questions, rubric, etc.).
+  \item The structured data is saved to the \codeword{prof\_data} table in the PostgreSQL database.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Student Workflow:}
+\begin{enumerate}
+  \item The student uploads their submission as a PDF.
+  \item The backend uses \codeword{PyMuPDF} to extract the raw text of their answer.
+  \item This text is saved to the \codeword{student\_data} table, linked to the appropriate assignment.
+\end{enumerate}
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{2. Core Grading Pipeline}
+
+This diagram shows the end-to-end process when a professor initiates a grading job, culminating in the results being displayed on the screen. 
+
+\begin{verbatim}
+graph TD
+    A[Start: User clicks Grade] --> B(Backend Logic 2_grading_result.py)
+    B --> C[Fetch submissions from student_data]
+    B --> D[Fetch rubric from prof_data]
+    C --> E[AI Grading Engine]
+    D --> E
+    E --> F[Agentic Pipeline]
+    F --> G(Grading Result score, feedback, confidence)
+    G --> H[Insert into grading_results]
+    H --> I[Streamlit UI updates]
+    I --> J[Professor reviews grades]
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{enumerate}
+  \item The process begins when the user starts a grading job from the Streamlit UI.
+  \item The backend fetches the relevant student submissions and the corresponding professor-defined rubric from the PostgreSQL database.
+  \item This data is dispatched as a job to the \textbf{AI Grading Engine}.
+  \item The engine performs the complex grading task (detailed in the next section).
+  \item The final, aggregated result is returned to the backend.
+  \item The backend saves this result to the \codeword{grading\_results} table for persistence.
+  \item The UI is updated to display the new grades in an editable table, completing the flow.
+\end{enumerate}
+
+\medskip\hrule\medskip
+
+\subsection{3. Agentic Grading Engine Pipeline (Deep Dive)}
+
+This diagram provides a detailed look inside the AI Grading Engine itself, showing how a single submission is processed by the multi-agent system. 
+
+\begin{verbatim}
+graph TD
+    A[Grading Job Received] --> B[Router]
+    B --> |text| C[Multi-Agent Grader]
+    B --> |code| D[Code Grader]
+
+    subgraph Code Grading Sandbox
+        D --> D1[Create Dockerfile + unittests]
+        D1 --> D2[docker build & docker run]
+        D2 --> D3[Capture unittest stdout]
+        D3 --> D4[Parse score]
+        D4 --> D5[LLM feedback]
+        D5 --> D6[Final code grade]
+    end
+
+    subgraph Multi-Agent Text Grading
+        C --> C1[RAG retrieval]
+        C1 --> C2[Similar past corrections]
+        C2 --> C3[Context bundle]
+
+        C --> C4[Concurrent agents]
+        C3 --> C4
+        C4 --> Agent1[Agent α]
+        C4 --> Agent2[Agent β]
+        C4 --> AgentN[Agent γ]
+
+        subgraph Single Agent Execution
+            Agent1 --> P1[Prompt Builder]
+            P1 --> L1[LLM call]
+            L1 --> R1[Score + feedback]
+        end
+
+        R1 --> C5[Aggregator]
+        Agent2 --> C5
+        AgentN --> C5
+
+        C5 --> C6[Mean/median + confidence]
+        C5 --> C7[Meta-agent synthesis]
+        C6 --> C8[Final text grade]
+        C7 --> C8
+    end
+
+    D6 --> Z[Return Result]
+    C8 --> Z
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{itemize}
+  \item \textbf{Routing:} The engine first routes the job based on the assignment type.
+  \item \textbf{Code Grading:} For code, it enters a secure Docker sandbox to run unit tests for an objective score, then uses an LLM to generate qualitative feedback on the code itself.
+  \item \textbf{Text Grading:} For text, the process is more complex:
+\begin{enumerate}
+  \item \textbf{RAG:} The RAG module first retrieves relevant historical grading examples from the FAISS vector store.
+  \item \textbf{Concurrent Grading:} Multiple AI agents, each with a different persona, are spawned in parallel. They each receive the submission, the rubric, and the context from the RAG module.
+  \item \textbf{Aggregation:} Once all agents complete, their individual scores are statistically aggregated (e.g., taking the median). The variance in their scores is used as a confidence metric.
+  \item \textbf{Synthesis:} A final "meta-agent" reviews the feedback from all other agents and synthesizes it into a single, high-quality, comprehensive piece of feedback for the student.
+\end{enumerate}
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{4. Human-in-the-Loop (HITL) \& RAG Update Pipeline}
+
+This pipeline shows what happens when a professor makes a correction to an AI-generated grade. This is a critical feedback loop for the system. 
+
+\begin{verbatim}
+sequenceDiagram
+    participant User as Professor
+    participant UI as Streamlit UI (`st.data_editor`)
+    participant Backend as Backend Logic
+    participant DB as PostgresHandler
+    participant PG as PostgreSQL Database
+    participant RAG as RAG Update Module
+    participant Embed as Embedding Model
+    participant FAISS as FAISS Vector Store
+
+    User->>UI: Edits a score or feedback field in the table
+    UI->>Backend: On change, submits the full row of data
+    Backend->>DB: Calls `UPDATE grading_results` to set `new_score` and `new_feedback`
+    DB->>PG: Executes SQL UPDATE
+    PG-->>DB: Confirms update
+    DB-->>Backend: Success
+
+    Backend->>RAG: Triggers RAG update with the corrected data
+    RAG->>Embed: Creates a document from the question and corrected feedback
+    Embed->>RAG: Generates a vector embedding for the document
+    RAG->>FAISS: Adds the new vector to the FAISS index
+    FAISS-->>RAG: Confirms save
+    RAG-->>Backend: Success
+    Backend-->>UI: Displays "Correction Saved" toast
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{enumerate}
+  \item The professor edits a grade directly in the Streamlit UI.
+  \item The backend receives the corrected data.
+  \item It first updates the \codeword{grading\_results} table in the PostgreSQL database, preserving both the original AI grade (\codeword{old\_feedback}) and the new human-verified grade (\codeword{new\_feedback}).
+  \item Next, this correction is used to improve the RAG system. The corrected feedback is converted into a vector embedding.
+  \item This new vector is added to the FAISS vector store, making this human-verified example available for all future grading tasks to improve their context and accuracy.
+\end{enumerate}
+
+\medskip\hrule\medskip
