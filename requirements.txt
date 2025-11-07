@@ -25,6 +25,7 @@ langchain-community
 langchain-ollama
 # Vectorization/Embeddings
 sentence-transformers
+faiss-cpu
 # Other specific libraries
 numpy
 sympy

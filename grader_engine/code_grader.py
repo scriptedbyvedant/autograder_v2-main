@@ -14,9 +14,13 @@ Returns a tuple:
 """
 from __future__ import annotations
 from typing import Dict, Any, List, Tuple, Optional
-import subprocess, tempfile, os, sys, textwrap
+import subprocess, tempfile, os, sys, textwrap, shutil
 
 PYTHON_BIN = sys.executable
+DOCKER_IMAGE = os.environ.get("CODE_SANDBOX_IMAGE", "python:3.11-alpine")
+SANDBOX_CPUS = os.environ.get("CODE_SANDBOX_CPUS", "1")
+SANDBOX_MEMORY = os.environ.get("CODE_SANDBOX_MEM", "256m")
+_DOCKER_AVAILABLE = shutil.which("docker") is not None
 
 def _rubric_to_list_and_total(rubric_any) -> (List[Dict[str, Any]], int):
     if isinstance(rubric_any, dict) and isinstance(rubric_any.get("criteria"), list):
@@ -49,19 +53,65 @@ def _proportional_scores(total_award: float, rubric_list: List[Dict[str, Any]]) 
     return [{"criteria": r.get("criteria", ""), "score": float(sc)} for r, sc in zip(rubric_list, rounded)]
 
 def _run(code: str, stdin_data: str, timeout_sec: int = 5) -> Tuple[int, str, str]:
+    """
+    Execute student code inside a Docker sandbox when available, falling back to
+    host execution only if Docker is unavailable or errors.
+    """
+    if _DOCKER_AVAILABLE:
+        rc, out, err = _run_in_docker(code, stdin_data, timeout_sec)
+        if rc is not None:
+            return rc, out, err
+    return _run_locally(code, stdin_data, timeout_sec)
+
+
+def _run_in_docker(code: str, stdin_data: str, timeout_sec: int) -> Tuple[Optional[int], str, str]:
+    global _DOCKER_AVAILABLE
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            td = os.path.abspath(td)
+            code_path = os.path.join(td, "student_code.py")
+            with open(code_path, "w", encoding="utf-8") as f:
+                f.write(code)
+            cmd = [
+                "docker", "run", "--rm",
+                "--network", "none",
+                f"--cpus={SANDBOX_CPUS}",
+                f"--memory={SANDBOX_MEMORY}",
+                "-v", f"{td}:/workspace",
+                "-w", "/workspace",
+                DOCKER_IMAGE,
+                "python", "student_code.py"
+            ]
+            proc = subprocess.run(
+                cmd,
+                input=stdin_data.encode("utf-8"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout_sec
+            )
+            return proc.returncode, proc.stdout.decode("utf-8").strip(), proc.stderr.decode("utf-8").strip()
+    except subprocess.TimeoutExpired:
+        return 124, "", "Timeout"
+    except Exception as exc:
+        # Disable further docker attempts for this process to avoid repeated failures.
+        _DOCKER_AVAILABLE = False
+        return None, "", f"Docker sandbox unavailable ({exc})"
+
+
+def _run_locally(code: str, stdin_data: str, timeout_sec: int) -> Tuple[int, str, str]:
     with tempfile.TemporaryDirectory() as td:
-        path = os.path.join(td, "s.py")
+        path = os.path.join(td, "student_code.py")
         with open(path, "w", encoding="utf-8") as f:
             f.write(code)
         try:
-            p = subprocess.run(
+            proc = subprocess.run(
                 [PYTHON_BIN, path],
                 input=stdin_data.encode("utf-8"),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=timeout_sec
             )
-            return p.returncode, p.stdout.decode("utf-8").strip(), p.stderr.decode("utf-8").strip()
+            return proc.returncode, proc.stdout.decode("utf-8").strip(), proc.stderr.decode("utf-8").strip()
         except subprocess.TimeoutExpired:
             return 124, "", "Timeout"
         except Exception as e:

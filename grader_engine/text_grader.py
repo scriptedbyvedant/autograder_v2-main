@@ -80,7 +80,7 @@ def _blocks_to_text(blocks: Any) -> str:
 # PROMPT (UPDATED for Multimodal Context)
 # -----------------------------------------------------------------------------
 BASE_TEMPLATE = """
-You are a strict grader. Grade the student's answer strictly by the provided rubric.
+You are {persona_instruction}
 Respond in {language}.
 
 Question:
@@ -117,7 +117,8 @@ def _make_prompt(
     rubric_json: str,
     student_answer: str,
     rag_context: Optional[Dict[str, Any]] = None,
-    multimodal_context: Optional[str] = None
+    multimodal_context: Optional[str] = None,
+    persona_instruction: Optional[str] = None
 ) -> str:
     """Compose the final prompt; include exemplars and multimodal context if provided."""
     exemplars_txt = ""
@@ -138,10 +139,12 @@ def _make_prompt(
     if multimodal_context:
         multimodal_context_txt = f"The following context from the professor's materials is also available:\n{multimodal_context}\n"
 
+    persona_text = (persona_instruction or "a strict grader. Grade the student's answer strictly by the provided rubric.").strip()
+
     tmpl = PromptTemplate(
         template=BASE_TEMPLATE,
         input_variables=[
-            "language", "question", "ideal_answer",
+            "language", "question", "ideal_answer", "persona_instruction",
             "rubric_json", "student_answer", "exemplar_block",
             "multimodal_context_block"
         ],
@@ -258,6 +261,7 @@ def grade_answer(
     *,
     # NEW: allow callers to pass blocks directly (compat with multimodal pipeline)
     student_answer_blocks: Optional[List[Dict[str, Any]]] = None,
+    persona_instruction: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Grade a single answer, using a fine-tuned or fallback model, now with multimodal context.
@@ -297,7 +301,8 @@ def grade_answer(
         rubric_json=rubric_json,
         student_answer=student_answer_text,
         rag_context=rag_context,
-        multimodal_context=mm_context_text
+        multimodal_context=mm_context_text,
+        persona_instruction=persona_instruction
     )
 
     raw, model_id = "", ""

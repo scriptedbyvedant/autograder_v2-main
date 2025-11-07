@@ -5,11 +5,18 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 import statistics
 import json
 import re
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .rag_integration import retrieve_context
 from .text_grader import grade_answer
 from .math_grader import grade_math
 from .code_grader import grade_code
+
+try:
+    from langchain_community.chat_models import ChatOllama
+except Exception:
+    ChatOllama = None
 
 # Optional external router; if missing we fallback to simple heuristics
 try:
@@ -43,6 +50,85 @@ def classify(text: str, has_latex: bool, has_code: bool) -> Dict[str, str]:
         except Exception:
             pass
     return _fallback_classify(text, has_latex, has_code)
+
+
+# ------------------------- persona + meta config -------------------------
+
+TEXT_AGENT_PERSONAS = [
+    {
+        "name": "strict",
+        "instruction": "a strict grader who enforces every detail of the rubric and deducts points for missing specifics or evidence.",
+        "uncertainty": 0.25
+    },
+    {
+        "name": "lenient",
+        "instruction": "a supportive yet fair grader who emphasizes conceptual understanding, awards partial credit, and highlights strengths before weaknesses.",
+        "uncertainty": 0.30
+    },
+    {
+        "name": "by_the_book",
+        "instruction": "a rubric auditor who checks each criterion sequentially, only awarding points when the student explicitly satisfies that criterion.",
+        "uncertainty": 0.28
+    },
+]
+
+_META_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+
+
+def _synthesize_meta_feedback(
+    question: str,
+    student_answer: str,
+    rubric_list: List[Dict[str, Any]],
+    agent_runs: List[Dict[str, Any]],
+    language: str = "English"
+) -> str:
+    """
+    Combine agent outputs into a single narrative. Falls back to concatenated feedback
+    when the meta LLM is unavailable.
+    """
+    if not agent_runs:
+        return ""
+
+    rubric_summary = "\n".join(f"- {r.get('criteria','')} ({int(r.get('points', 0))} pts)" for r in rubric_list or [])
+    agent_summaries = []
+    for run in agent_runs:
+        persona = run["persona"]["name"]
+        output = run["result"]
+        agent_summaries.append(
+            f"{persona.title()} agent (score {output.get('total_score', 0)}): { (output.get('feedback') or '').strip() }"
+        )
+    agent_block = "\n\n".join(agent_summaries)
+
+    prompt = f"""
+You are the meta-grader leading a panel of AI graders. Respond in {language}.
+The original question (if provided) was:
+{question or 'N/A'}
+
+Student answer:
+{student_answer or 'N/A'}
+
+Rubric:
+{rubric_summary or 'N/A'}
+
+Below are the panel summaries:
+{agent_block}
+
+Produce a single, well-structured piece of feedback that:
+1. Notes areas of agreement across agents.
+2. Highlights genuine disagreements (if any) and resolves them with a clear judgment.
+3. References the rubric explicitly when explaining deductions or praise.
+4. Ends with actionable improvement advice.
+"""
+    if ChatOllama is not None:
+        try:
+            llm = ChatOllama(model=_META_MODEL)
+            resp = llm.invoke(prompt)
+            content = getattr(resp, "content", str(resp))
+            return content.strip()
+        except Exception:
+            pass
+    # Fallback: return aggregated text if LLM unavailable
+    return agent_block.strip()
 
 
 # ------------------------- normalization helpers -------------------------
@@ -301,38 +387,77 @@ def grade_block(
         return fused
 
     # -------------------- Text (LLM) path --------------------
-    # Use exemplars/ideal from RAG for stronger grading context
-    g1_raw = grade_answer(
-        question=text or "",
-        ideal_answer=ideal or "",
-        rubric=rubric_list,
-        student_answer=text or "",
-        language="English",
-        model_name=None,
-        rag_context=ctx,
-        return_debug=return_debug
-    )
-    g2_raw = grade_answer(
-        question=text or "",
-        ideal_answer=ideal or "",
-        rubric=rubric_list,
-        student_answer=text or "",
-        language="English",
-        model_name=None,
-        rag_context=ctx,
-        return_debug=return_debug
-    )
+    student_text = text or ""
+    question_text = text or ""
+    language = "English"
 
-    g1 = {"total_score": g1_raw.get("total_score", 0.0), "rubric_scores": g1_raw.get("rubric_scores", []), "uncertainty": 0.35}
-    g2 = {"total_score": g2_raw.get("total_score", 0.0), "rubric_scores": g2_raw.get("rubric_scores", []), "uncertainty": 0.35}
+    def _invoke_agent(persona: Dict[str, Any]) -> Dict[str, Any]:
+        return grade_answer(
+            question=question_text,
+            ideal_answer=ideal or "",
+            rubric=rubric_list,
+            student_answer=student_text,
+            language=language,
+            model_name=None,
+            rag_context=ctx,
+            return_debug=return_debug,
+            persona_instruction=persona.get("instruction")
+        )
 
-    fused = fuse([g1, g2])
+    agent_runs: List[Dict[str, Any]] = []
+
+    if TEXT_AGENT_PERSONAS:
+        with ThreadPoolExecutor(max_workers=len(TEXT_AGENT_PERSONAS)) as executor:
+            future_map = {executor.submit(_invoke_agent, persona): persona for persona in TEXT_AGENT_PERSONAS}
+            for future in as_completed(future_map):
+                persona = future_map[future]
+                try:
+                    output = future.result()
+                except Exception as exc:
+                    output = {
+                        "total_score": 0.0,
+                        "rubric_scores": [{"criteria": r.get("criteria", ""), "score": 0.0} for r in rubric_list],
+                        "feedback": f"{persona['name']} agent failed: {exc}"
+                    }
+                agent_runs.append({"persona": persona, "result": output})
+    else:
+        default_persona = {"name": "default", "instruction": None, "uncertainty": 0.35}
+        output = _invoke_agent(default_persona)
+        agent_runs.append({"persona": default_persona, "result": output})
+
+    fuse_payloads = []
+    for run in agent_runs:
+        persona = run["persona"]
+        result = run["result"]
+        fuse_payloads.append({
+            "total_score": result.get("total_score", 0.0),
+            "rubric_scores": result.get("rubric_scores", []),
+            "uncertainty": persona.get("uncertainty", 0.35)
+        })
+
+    if not fuse_payloads and agent_runs:
+        first = agent_runs[0]["result"]
+        fuse_payloads.append({"total_score": first.get("total_score", 0.0), "rubric_scores": first.get("rubric_scores", []), "uncertainty": 0.35})
+
+    fused = fuse(fuse_payloads or [{"total_score": 0.0, "rubric_scores": [], "uncertainty": 0.5}])
     if not fused["final"]["per_criterion"]:
         fused["final"]["per_criterion"] = _distribute_total_to_rubric(fused["final"]["total"], rubric_list)
     fused["kind"] = "text"
 
+    consensus_feedback = _synthesize_meta_feedback(question_text, student_text, rubric_list, agent_runs, language=language)
+    if not consensus_feedback and agent_runs:
+        consensus_feedback = agent_runs[0]["result"].get("feedback", "")
+    fused["feedback"] = consensus_feedback or ""
+
     if return_debug:
-        # Prefer first run's prompt/output
-        dbg["llm"] = g1_raw.get("debug", {})
+        dbg["agents"] = [
+            {
+                "persona": run["persona"]["name"],
+                "score": run["result"].get("total_score"),
+                "feedback": run["result"].get("feedback")
+            }
+            for run in agent_runs
+        ]
+        dbg["meta_feedback"] = consensus_feedback
         fused["debug"] = dbg
     return fused

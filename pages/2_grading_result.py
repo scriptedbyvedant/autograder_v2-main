@@ -33,6 +33,7 @@ from database.postgres_handler import PostgresHandler
 from grader_engine.multimodal_rag import retrieve_multimodal_context
 from grader_engine.explainer import generate_explanation
 from rag_utils import seed_rag_from_professor
+from grader_engine.rag_integration import add_correction_example
 from typing import Optional, Any
 
 # --- Translations (UI strings) ---
@@ -379,6 +380,7 @@ def grade_single_answer_task(student_id: str, q: Dict, student_answers: Dict, la
 
     result_data = {
         "student_id": student_id,
+        "question_id": q.get("id"),
         "question": q.get("question",""),
         "ideal_answer": ideal_blocks,              # ✅ store normalized blocks for UI
         "student_answer_content": _to_blocks(stud_ans_content),
@@ -566,6 +568,13 @@ def grading_result_page():
     if st.button(T["save_changes"], key=f"save_{detail_key}", type="primary"):
         new_total_score = sum(item["score"] for item in stored["rubric_scores"])
         db.update_grading_result_with_correction(grading_result_id=stored["db_id"], new_score=float(new_total_score), new_feedback=stored["feedback"]["text"], editor_id=my_email)
+        add_correction_example(
+            question_id=stored.get("question_id") or sel_q,
+            question_text=stored.get("question", ""),
+            student_answer=_blocks_to_plain_text(stored.get("student_answer_content", [])),
+            feedback=stored["feedback"]["text"],
+            editor_id=my_email
+        )
         stored["feedback"]["original"] = stored["feedback"]["text"]
         for item in stored["rubric_scores"]: item["original_score"] = item["score"]
         st.success("✅ Changes saved!")

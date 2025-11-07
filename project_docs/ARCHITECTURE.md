@@ -53,7 +53,8 @@ The frontend is built using Streamlit and is organized into a multi-page applica
     *   `0_auth.py`: User authentication.
     *   `1_upload_data.py`: Interface for professors to upload assignment PDFs and for students to submit their work.
     *   `2_grading_result.py`: Displays the results of the grading process.
-    *   `3_fine_tuning.py`: The user-friendly interface for fine-tuning the model.
+    *   `3_dashboard.py`: Cohort-level analytics, exports, and collaboration aids.
+    *   `3_collaboration_center.py`: Optional workflow for sharing graded artefacts with colleagues.
 
 ### **2.2. Authentication and Session Management**
 
@@ -137,15 +138,6 @@ This module is responsible for generating the detailed, rubric-aligned justifica
 
 ---
 
-## 5. Model Management & Finetuning (`training/`)
+## 5. Model Management (Future Work)
 
-The application is designed to allow for continuous improvement of the AI models through a user-friendly fine-tuning process.
-
-### **5.1. Finetuning Workflow**
-
-The new `pages/3_fine_tuning.py` page orchestrates this process:
-
-1.  **Data Generation:** A user clicks a button to generate a `training_dataset.jsonl` file. The backend queries the `grading_results` table for all human-corrected examples and formats them into the required JSONL structure.
-2.  **Colab Training:** The user uploads this dataset to Google Colab and runs a provided Python script (`training/colab_finetune.py`). This script handles the installation of dependencies, data preparation, and the MLX-based fine-tuning process.
-3.  **Adapter Deployment:** The training script produces a `trained_adapters.npz` file. The user downloads this file and places it in the `training/` directory of the application.
-4.  **Automatic Loading:** On startup, the application checks for the existence of `trained_adapters.npz`. If found, it automatically loads the fine-tuned LoRA adapters, enhancing the base model with the user's specific corrections.
+The current release focuses on deterministic prompts, retrieval grounding, and manual human-in-the-loop corrections. Automated fine-tuning workflows, adapter management, and associated tooling (e.g., Colab scripts or additional Streamlit pages) are explicitly out of scope and will be revisited when institutional requirements call for managed MLOps support.
