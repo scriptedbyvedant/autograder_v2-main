@@ -1,0 +1,546 @@
+\hypertarget{software-design-document}{%
+\section{Software Design Document}\label{software-design-document}}
+
+This document provides a detailed technical design for the Automated
+Grading Framework. It is divided into two main sections: a High-Level
+Design (HLD) that describes the overall system architecture and a
+Low-Level Design (LLD) that provides detailed specifications for each
+component.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{high-level-design-hld}{%
+\subsection{1. High-Level Design (HLD)}\label{high-level-design-hld}}
+
+The High-Level Design outlines the major components of the system, their
+interactions, and the technology stack.
+
+\hypertarget{system-architecture-overview}{%
+\subsubsection{1.1. System Architecture
+Overview}\label{system-architecture-overview}}
+
+The application is a monolithic web application built on a multi-tiered
+architecture. It is designed for modularity to allow for future
+expansion and potential migration to a microservices-based architecture.
+
+\begin{verbatim}
+graph TD
+    subgraph User Layer
+        A[User's Browser] -->|HTTPS| B{Streamlit Web UI}
+    end
+
+    subgraph Application Layer
+        B -->|Function Calls| C{Backend Logic}
+        C -->|SQL Queries| D[PostgreSQL Database]
+        C -->|Grading Jobs| E{AI Grading Engine}
+    end
+
+    subgraph AI & Data Layer
+        E -->|API Calls / Local Inference| F{LLMs}
+        E -->|Embeddings & Retrieval| G[FAISS Vector Store]
+        E -->|Secure Execution| H{Docker Sandbox}
+    end
+
+    style B fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style D fill:#cde4f8,stroke:#333,stroke-width:2px
+    style G fill:#cde4f8,stroke:#333,stroke-width:2px
+\end{verbatim}
+
+\textbf{Component Responsibilities:}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Streamlit Web UI (Frontend):} A multi-page application that
+  serves as the primary user interface. It handles user input,
+  authentication, data visualization, and presents the grading results.
+  It is stateful within a user session.
+\item
+  \textbf{Backend Logic (Integrated with Frontend):} In the current
+  architecture, the backend logic is tightly coupled with the Streamlit
+  frontend. It processes user requests, orchestrates database
+  interactions via the \texttt{PostgresHandler}, and initiates grading
+  jobs.
+\item
+  \textbf{PostgreSQL Database:} The central repository for all
+  persistent data. It stores user accounts, course materials, student
+  submissions, and all grading results, including human-in-the-loop
+  corrections.
+\item
+  \textbf{AI Grading Engine:} The core of the system. It contains the
+  logic for different grading modalities (text, code, etc.) and
+  orchestrates the complex interactions between LLMs, RAG, and other AI
+  components.
+\item
+  \textbf{LLMs (Large Language Models):} The underlying intelligence.
+  The system is designed to be model-agnostic, capable of interfacing
+  with various local models (e.g., via MLX) or external APIs (like
+  OpenAI or Google's Gemini).
+\item
+  \textbf{FAISS Vector Store:} An on-disk vector database used to
+  implement Retrieval Augmented Generation (RAG). It stores embeddings
+  of past human-corrected gradings to improve future consistency.
+\item
+  \textbf{Docker Sandbox:} A secure, containerized environment for
+  executing untrusted student code against predefined unit tests,
+  preventing any potential harm to the host system.
+\end{enumerate}
+
+\hypertarget{technology-stack}{%
+\subsubsection{1.2. Technology Stack}\label{technology-stack}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.14}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.14}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.71}}@{}}
+\toprule
+Component & Technology/Framework & Justification \\
+\midrule
+\endhead
+\textbf{Frontend/Backend} & Streamlit & Enables rapid development of
+data-centric web applications with Python. Ideal for prototyping and
+internal tools. \\
+\textbf{Database} & PostgreSQL & A robust, open-source relational
+database that handles structured data and complex queries
+effectively. \\
+\textbf{AI Orchestration} & LangChain & Simplifies the development of
+LLM-powered applications, particularly for multi-agent and RAG
+workflows. \\
+\textbf{Local AI/ML} & MLX (for Apple Silicon) & A highly efficient
+framework for running machine learning models on Apple Silicon, used for
+local fine-tuning. \\
+\textbf{PDF Processing} & PyMuPDF (\texttt{fitz}) & Chosen for its high
+speed and accuracy in extracting text and metadata from PDF files. \\
+\textbf{Vector Store} & FAISS (from Facebook AI) & An efficient library
+for similarity search and clustering of dense vectors, forming the core
+of the RAG module. \\
+\textbf{Code Sandboxing} & Docker & The industry standard for creating
+isolated, reproducible environments, ensuring secure code execution. \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{user-roles-and-permissions}{%
+\subsubsection{1.3. User Roles and
+Permissions}\label{user-roles-and-permissions}}
+
+Two primary user roles are defined within the system:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Professor:} Has full access to the system. Can upload course
+  materials, view all student submissions, initiate grading, review and
+  modify AI-generated grades, view analytics, and manage the fine-tuning
+  process.
+\item
+  \textbf{Student (Future Scope):} While the current system focuses on
+  the professor's workflow, a student role would have restricted access,
+  limited to uploading their own submissions and viewing their final,
+  published grades.
+\end{itemize}
+
+\hypertarget{data-flow-diagram}{%
+\subsubsection{1.4. Data Flow Diagram}\label{data-flow-diagram}}
+
+This diagram illustrates the end-to-end flow for a typical text-based
+assignment grading task.
+
+\begin{verbatim}
+sequenceDiagram
+    participant User as Professor
+    participant UI as Streamlit UI
+    participant Backend as Backend Logic
+    participant DB as PostgreSQL DB
+    participant Engine as AI Grading Engine
+
+    User->>UI: Uploads Assignment PDF (Questions, Rubric)
+    UI->>Backend: Parses PDF, extracts data
+    Backend->>DB: INSERT into `prof_data` table
+    DB-->>Backend: Confirms save
+
+    User->>UI: Uploads Student Submissions (PDFs)
+    UI->>Backend: Parses PDFs
+    Backend->>DB: INSERT into `student_data` table
+    DB-->>Backend: Confirms save
+
+    User->>UI: Clicks "Start Grading"
+    UI->>Backend: Initiates grading job
+    Backend->>Engine: Dispatches job with submissions and rubric
+    
+    Engine->>Engine: Spawns multiple AI agents
+    loop For Each Agent
+        Engine->>Engine: Retrieves similar past examples (RAG) from Vector Store
+        Engine->>Engine: Constructs detailed prompt
+        Engine->>Engine: Grades submission using LLM
+    end
+    Engine->>Engine: Aggregates results to form consensus grade
+    
+    Engine-->>Backend: Returns final grade, feedback, and explanation
+    Backend->>DB: INSERT into `grading_results`
+
+    Backend-->>UI: Displays grading results
+    User->>UI: Reviews and (optionally) corrects a grade
+    UI->>Backend: Submits correction
+    Backend->>DB: UPDATE `grading_results` (sets `new_score`, `new_feedback`)
+    Backend->>Engine: Stores correction in Vector Store for future RAG
+\end{verbatim}
+
+\hypertarget{future-state-cloud-architecture-google-cloud}{%
+\subsubsection{1.5. Future-State Cloud Architecture (Google
+Cloud)}\label{future-state-cloud-architecture-google-cloud}}
+
+For a production-grade system, migrating from a local, monolithic
+architecture to a scalable cloud-based one is recommended. Google Cloud
+offers a suite of services that align perfectly with this application's
+needs.
+
+\begin{verbatim}
+graph TD
+    subgraph User & CDN
+        A[User Browser] --> B[Cloud CDN & Load Balancer]
+    end
+
+    subgraph Application Services
+        B --> C[Cloud Run Frontend]
+        B --> D[Cloud Functions Backend API]
+    end
+
+    subgraph Data & Storage
+        C --> E[Cloud SQL for PostgreSQL]
+        D --> E
+        D --> F[Cloud Storage Assets]
+    end
+
+    subgraph AI Platform
+        D --> G[Vertex AI Pipelines]
+        G --> H[Vertex AI Model Garden]
+        G --> I[Vertex AI Vector Search]
+        G --> J[Cloud Run Jobs for Code Execution]
+    end
+
+    C --> F
+\end{verbatim}
+
+\textbf{Migration Benefits:}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Scalability \& Reliability:} Cloud Run and Cloud Functions
+  automatically scale with traffic, including scaling to zero, which is
+  highly cost-effective. Cloud SQL provides managed, high-availability
+  PostgreSQL.
+\item
+  \textbf{Decoupled Frontend/Backend:} Separating the Streamlit frontend
+  (served via Cloud Run) from the backend logic (refactored into API
+  endpoints in Cloud Functions) creates a more robust and scalable
+  microservices architecture.
+\item
+  \textbf{Centralized MLOps with Vertex AI:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Vertex AI Pipelines:} The entire grading and fine-tuning
+    workflow can be defined as a reproducible pipeline, making it easier
+    to manage, version, and trigger.
+  \item
+    \textbf{Vertex AI Vector Search:} A fully managed, highly scalable,
+    and low-latency vector database to replace the local FAISS store.
+  \item
+    \textbf{Model Management:} Use the Vertex AI Model Garden for
+    pre-trained models or host custom-trained models, streamlining model
+    deployment and versioning.
+  \end{itemize}
+\item
+  \textbf{Secure, Serverless Execution:} Replace the local Docker
+  sandbox with ephemeral Cloud Run Jobs for even more secure and
+  scalable code execution.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{low-level-design-lld}{%
+\subsection{2. Low-Level Design (LLD)}\label{low-level-design-lld}}
+
+The Low-Level Design provides detailed specifications for individual
+modules, data structures, and logic.
+
+\hypertarget{database-schema-postgresql}{%
+\subsubsection{2.1. Database Schema
+(PostgreSQL)}\label{database-schema-postgresql}}
+
+Below is a detailed breakdown of the core tables. All text fields are
+\texttt{TEXT} to accommodate variable lengths. Timestamps are used for
+auditing.
+
+\textbf{Table: \texttt{users}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.12}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.17}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}@{}}
+\toprule
+Column & Data Type & Constraints & Description \\
+\midrule
+\endhead
+\texttt{id} & \texttt{SERIAL} & \texttt{PRIMARY\ KEY} & Unique
+identifier for the user. \\
+\texttt{username} & \texttt{VARCHAR(255)} & \texttt{UNIQUE},
+\texttt{NOT\ NULL} & User's chosen login name. \\
+\texttt{password\_hash} & \texttt{VARCHAR(255)} & \texttt{NOT\ NULL} &
+Hashed password for secure storage. \\
+\texttt{role} & \texttt{VARCHAR(50)} &
+\texttt{DEFAULT\ \textquotesingle{}professor\textquotesingle{}} & User's
+role (e.g., `professor'). \\
+\texttt{created\_at} & \texttt{TIMESTAMP\ WITH\ TIME\ ZONE} &
+\texttt{DEFAULT\ CURRENT\_TIMESTAMP} & Timestamp of account creation. \\
+\bottomrule
+\end{longtable}
+
+\textbf{Table: \texttt{prof\_data}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.12}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.17}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}@{}}
+\toprule
+Column & Data Type & Constraints & Description \\
+\midrule
+\endhead
+\texttt{id} & \texttt{SERIAL} & \texttt{PRIMARY\ KEY} & Unique
+identifier for the dataset entry. \\
+\texttt{course} & \texttt{VARCHAR(255)} & \texttt{NOT\ NULL} & The
+course name (e.g., `CS101'). \\
+\texttt{assignment\_no} & \texttt{VARCHAR(255)} & \texttt{NOT\ NULL} &
+The assignment number (e.g., `HW1'). \\
+\texttt{question} & \texttt{TEXT} & \texttt{NOT\ NULL} & The text of the
+assignment question. \\
+\texttt{ideal\_answer} & \texttt{TEXT} & & The professor-provided ideal
+answer. \\
+\texttt{rubric} & \texttt{JSONB} & \texttt{NOT\ NULL} & The grading
+rubric stored in JSON format. \\
+\texttt{uploaded\_by} & \texttt{INTEGER} &
+\texttt{REFERENCES\ users(id)} & Foreign key linking to the
+\texttt{users} table. \\
+\texttt{uploaded\_at} & \texttt{TIMESTAMP\ WITH\ TIME\ ZONE} &
+\texttt{DEFAULT\ CURRENT\_TIMESTAMP} & Timestamp of the upload. \\
+\bottomrule
+\end{longtable}
+
+\textbf{Table: \texttt{grading\_results}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.12}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.17}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.36}}@{}}
+\toprule
+Column & Data Type & Constraints & Description \\
+\midrule
+\endhead
+\texttt{id} & \texttt{SERIAL} & \texttt{PRIMARY\ KEY} & Unique
+identifier for the grading result. \\
+\texttt{course} & \texttt{VARCHAR(255)} & \texttt{NOT\ NULL} & The
+course name. \\
+\texttt{assignment\_no} & \texttt{VARCHAR(255)} & \texttt{NOT\ NULL} &
+The assignment number. \\
+\texttt{question} & \texttt{TEXT} & \texttt{NOT\ NULL} & The question
+being graded. \\
+\texttt{student\_answer} & \texttt{TEXT} & \texttt{NOT\ NULL} & The full
+text of the student's answer. \\
+\texttt{old\_score} & \texttt{INTEGER} & & The original score given by
+the AI. \\
+\texttt{old\_feedback} & \texttt{TEXT} & & The original feedback
+generated by the AI. \\
+\texttt{new\_score} & \texttt{INTEGER} & & The human-corrected score (if
+any). \\
+\texttt{new\_feedback} & \texttt{TEXT} & & The human-corrected feedback
+(if any). \\
+\texttt{graded\_at} & \texttt{TIMESTAMP\ WITH\ TIME\ ZONE} &
+\texttt{DEFAULT\ CURRENT\_TIMESTAMP} & Timestamp when the grading was
+performed. \\
+\texttt{corrected\_by} & \texttt{INTEGER} &
+\texttt{REFERENCES\ users(id)} & Foreign key to the user who made the
+correction. \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ai-grading-engine-grader_engine---module-breakdown}{%
+\subsubsection{\texorpdfstring{2.2. AI Grading Engine
+(\texttt{grader\_engine/}) - Module
+Breakdown}{2.2. AI Grading Engine (grader\_engine/) - Module Breakdown}}\label{ai-grading-engine-grader_engine---module-breakdown}}
+
+\hypertarget{multi_agent.py}{%
+\paragraph{\texorpdfstring{\textbf{\texttt{multi\_agent.py}}}{multi\_agent.py}}\label{multi_agent.py}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Class: \texttt{MultiAgentGrader}}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{\_\_init\_\_(self,\ agents:\ List{[}Callable{]},\ aggregator:\ Callable)}:
+    Initializes with a list of agent functions and an aggregator
+    function.
+  \item
+    \texttt{grade\_submission(self,\ submission:\ str,\ rubric:\ dict,\ context:\ str)\ -\textgreater{}\ dict}:
+
+    \begin{enumerate}
+    \def\labelenumi{\arabic{enumi}.}
+    \tightlist
+    \item
+      Uses \texttt{concurrent.futures.ThreadPoolExecutor} to run each
+      agent function in parallel.
+    \item
+      Each agent function receives the submission, rubric, and RAG
+      context.
+    \item
+      Collects the results (score, feedback) from all agents.
+    \item
+      Passes the list of results to the \texttt{aggregator} function.
+    \item
+      Returns the aggregated result.
+    \end{enumerate}
+  \end{itemize}
+\item
+  \textbf{Function:
+  \texttt{create\_grading\_agent(persona:\ str,\ llm:\ BaseLLM)\ -\textgreater{}\ Callable}}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    A factory function that takes a persona (e.g., ``You are a strict
+    but fair grader\ldots{}'') and an LLM instance.
+  \item
+    It constructs a LangChain prompt template that includes placeholders
+    for the persona, submission, rubric, and RAG context.
+  \item
+    Returns a callable function (a LangChain chain) that executes the
+    grading task for that specific agent.
+  \end{itemize}
+\item
+  \textbf{Function:
+  \texttt{aggregate\_results(results:\ List{[}dict{]})\ -\textgreater{}\ dict}}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Calculates the mean, median, and standard deviation of the scores.
+  \item
+    Uses a separate LLM call to a ``meta-agent'' to synthesize the
+    feedback from all agents into a single, high-quality, and
+    comprehensive explanation.
+  \item
+    Returns a dictionary containing the final score, synthesized
+    feedback, and a confidence metric based on score variance.
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{code_grader.py}{%
+\paragraph{\texorpdfstring{\textbf{\texttt{code\_grader.py}}}{code\_grader.py}}\label{code_grader.py}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Class: \texttt{CodeGrader}}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{grade\_submission(self,\ student\_code:\ str,\ test\_cases:\ str)\ -\textgreater{}\ dict}:
+
+    \begin{enumerate}
+    \def\labelenumi{\arabic{enumi}.}
+    \tightlist
+    \item
+      \textbf{Prepare Docker Environment:} Creates a temporary directory
+      containing the \texttt{student\_code}, the \texttt{test\_cases}
+      (as a \texttt{unittest} file), and a \texttt{Dockerfile}.
+    \item
+      \textbf{Build Docker Image:} Runs \texttt{docker\ build} to create
+      a self-contained image.
+    \item
+      \textbf{Run Docker Container:} Executes \texttt{docker\ run} on
+      the image. The container runs the \texttt{unittest} suite and
+      captures the \texttt{stdout} and \texttt{stderr} to a results
+      file.
+    \item
+      \textbf{Parse Test Results:} Reads the output from the container
+      to determine which tests passed and failed, calculating an
+      objective score.
+    \item
+      \textbf{Generate Qualitative Feedback:} Makes an LLM call with a
+      specialized prompt containing the student code, the test cases,
+      and the pass/fail results. The prompt asks the LLM to provide
+      feedback on style, efficiency, and correctness, explaining why the
+      tests failed.
+    \item
+      \textbf{Cleanup:} Removes the Docker container, image, and
+      temporary directory.
+    \item
+      Returns a dictionary with the objective score, a list of
+      passed/failed tests, and the LLM-generated qualitative feedback.
+    \end{enumerate}
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{finetuning-workflow-pages3_fine_tuning.py}{%
+\subsubsection{\texorpdfstring{2.3. Finetuning Workflow
+(\texttt{pages/3\_fine\_tuning.py})}{2.3. Finetuning Workflow (pages/3\_fine\_tuning.py)}}\label{finetuning-workflow-pages3_fine_tuning.py}}
+
+This page acts as a user-friendly orchestrator for a complex MLOps task.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Function: \texttt{generate\_training\_data()}}
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi}.}
+  \tightlist
+  \item
+    Instantiates a \texttt{PostgresHandler}.
+  \item
+    Executes a specific SQL query (as detailed in the file) to fetch all
+    rows from \texttt{grading\_results} where \texttt{new\_feedback} is
+    not null and differs from \texttt{old\_feedback}.
+  \item
+    Iterates through the results, formatting each one into a JSON object
+    with a single key, \texttt{"text"}.
+  \item
+    The value for \texttt{"text"} is a long string formatted according
+    to the \texttt{PROMPT\_TEMPLATE}, injecting the question, student
+    answer, ideal answer/rubric, and critically, the human-written
+    \texttt{corrected\_feedback} as the model's target response.
+  \item
+    Concatenates these JSON objects, separated by newlines, to create a
+    valid JSONL file string.
+  \item
+    Stores this string in \texttt{st.session\_state} to make it
+    available for download.
+  \end{enumerate}
+\item
+  \textbf{UI Logic:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    A button, \texttt{"Generate\ Training\ Data"}, triggers the
+    \texttt{generate\_training\_data} function.
+  \item
+    Upon successful generation (if
+    \texttt{st.session\_state{[}\textquotesingle{}generated\_training\_data\textquotesingle{}{]}}
+    exists), a \texttt{st.download\_button} is rendered, allowing the
+    user to save the \texttt{.jsonl} file.
+  \item
+    A \texttt{st.code} block displays the full, static content of the
+    \texttt{colab\_finetune.py} script, providing a clear, read-only
+    view with a copy button for user convenience.
+  \end{itemize}
+\end{itemize}

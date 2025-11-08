@@ -1,0 +1,289 @@
+\hypertarget{application-architecture}{%
+\section{Application Architecture}\label{application-architecture}}
+
+This document provides a detailed overview of the technical architecture
+of the automated grading application. It is intended for developers and
+system administrators.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{high-level-overview}{%
+\subsection{1. High-Level Overview}\label{high-level-overview}}
+
+The application is a multi-tiered system composed of a web-based
+frontend, a robust backend with a relational database, and a
+sophisticated AI-powered grading engine.
+
+\begin{verbatim}
+graph TD
+    A[Browser] --> B{Streamlit Frontend};
+    B --> C{Backend Server};
+    C --> D[PostgreSQL Database];
+    C --> E{AI Grading Engine};
+    E --> F[LLM APIs / Local Models];
+    E --> G[Vector Store];
+
+    subgraph User Interface
+        B
+    end
+
+    subgraph Core Logic & Data
+        C
+        D
+    end
+
+    subgraph AI Processing
+        E
+        F
+        G
+    end
+\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Frontend:} A multi-page Streamlit application provides the
+  user interface for professors and teaching assistants.
+\item
+  \textbf{Backend:} A Python backend orchestrates the application logic,
+  handling user requests, database interactions, and calls to the
+  grading engine.
+\item
+  \textbf{Database:} A PostgreSQL database stores all persistent data,
+  including user information, assignment details, student submissions,
+  and grading results.
+\item
+  \textbf{AI Grading Engine:} A modular engine that leverages Large
+  Language Models (LLMs) to perform the grading. It includes specialized
+  modules for different types of assignments.
+\item
+  \textbf{Vector Store:} A FAISS-based vector database stores embeddings
+  of past grading decisions to provide historical context (RAG).
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{frontend-streamlit-application}{%
+\subsection{2. Frontend (Streamlit
+Application)}\label{frontend-streamlit-application}}
+
+The frontend is built using Streamlit and is organized into a multi-page
+application structure.
+
+\hypertarget{directory-structure}{%
+\subsubsection{\texorpdfstring{\textbf{2.1. Directory
+Structure}}{2.1. Directory Structure}}\label{directory-structure}}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{app.py}: The main entry point of the Streamlit application. It
+  handles routing and global configuration.
+\item
+  \texttt{pages/}: This directory contains the individual pages of the
+  application, such as:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{0\_auth.py}: User authentication.
+  \item
+    \texttt{1\_upload\_data.py}: Interface for professors to upload
+    assignment PDFs and for students to submit their work.
+  \item
+    \texttt{2\_grading\_result.py}: Displays the results of the grading
+    process.
+  \item
+    \texttt{3\_dashboard.py}: Cohort-level analytics, exports, and
+    collaboration aids.
+  \item
+    \texttt{3\_collaboration\_center.py}: Optional workflow for sharing
+    graded artefacts with colleagues.
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{authentication-and-session-management}{%
+\subsubsection{\texorpdfstring{\textbf{2.2. Authentication and Session
+Management}}{2.2. Authentication and Session Management}}\label{authentication-and-session-management}}
+
+Authentication is managed through the \texttt{auth} module. User session
+data, including login status and user roles, is stored in
+\texttt{st.session\_state}. This ensures that sensitive pages are
+protected and that the application context is maintained as the user
+navigates between pages.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{backend-and-database}{%
+\subsection{3. Backend and Database}\label{backend-and-database}}
+
+The backend logic is tightly integrated with the PostgreSQL database,
+which serves as the single source of truth.
+
+\hypertarget{database-schema}{%
+\subsubsection{\texorpdfstring{\textbf{3.1. Database
+Schema}}{3.1. Database Schema}}\label{database-schema}}
+
+The database consists of several key tables:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{users}: Stores user credentials and roles (e.g., professor,
+  assistant).
+\item
+  \texttt{prof\_data}: Contains the data uploaded by professors,
+  including the course, assignment number, questions, ideal answers, and
+  grading rubrics.
+\item
+  \texttt{student\_data}: Stores student submissions, linked to a
+  specific assignment.
+\item
+  \texttt{grading\_results}: This is the central table for storing the
+  output of the grading engine. It includes the original student answer,
+  the AI-generated score and feedback (\texttt{old\_feedback}), and any
+  human-in-the-loop corrections (\texttt{new\_feedback},
+  \texttt{new\_score}).
+\end{itemize}
+
+\hypertarget{data-handler-databasepostgres_handler.py}{%
+\subsubsection{\texorpdfstring{\textbf{3.2. Data Handler
+(\texttt{database/postgres\_handler.py})}}{3.2. Data Handler (database/postgres\_handler.py)}}\label{data-handler-databasepostgres_handler.py}}
+
+All database interactions are abstracted away by the
+\texttt{PostgresHandler} class. This class provides a standardized
+interface for executing queries (SELECT, INSERT, UPDATE) and managing
+connections. This centralized approach ensures consistency and
+simplifies database management.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{the-ai-grading-engine-grader_engine}{%
+\subsection{\texorpdfstring{4. The AI Grading Engine
+(\texttt{grader\_engine/})}{4. The AI Grading Engine (grader\_engine/)}}\label{the-ai-grading-engine-grader_engine}}
+
+This is the core of the application where the AI-powered grading takes
+place.
+
+\begin{verbatim}
+graph TD
+    A[Request from Backend] --> B{Router};
+    B --> |Text| C[Text Grader];
+    B --> |Code| D[Code Grader];
+    B --> |Multi-Agent| E[Multi-Agent Grader];
+    B --> |Multimodal| F[Multimodal Grader];
+
+    C --> G{RAG Integration};
+    E --> G;
+    
+    G --> H[Vector Store];
+    C --> I{Explainability Module};
+    E --> I;
+
+    I --> J[Final Grade & Feedback];
+\end{verbatim}
+
+\hypertarget{router-router.py}{%
+\subsubsection{\texorpdfstring{\textbf{4.1. Router
+(\texttt{router.py})}}{4.1. Router (router.py)}}\label{router-router.py}}
+
+The \texttt{Router} is the main entry point for the grading engine. It
+inspects the assignment type (e.g., text, code, multimodal) and directs
+the request to the appropriate specialized grader.
+
+\hypertarget{multi-agent-grader-multi_agent.py}{%
+\subsubsection{\texorpdfstring{\textbf{4.2. Multi-Agent Grader
+(\texttt{multi\_agent.py})}}{4.2. Multi-Agent Grader (multi\_agent.py)}}\label{multi-agent-grader-multi_agent.py}}
+
+To improve reliability and reduce bias, the system employs a multi-agent
+consensus mechanism:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Agent Roles:} Multiple LLM agents are instantiated with
+  slightly different personas (e.g., a ``strict'' grader, a ``lenient''
+  grader, a ``by-the-book'' grader).
+\item
+  \textbf{Concurrent Grading:} These agents grade the same submission in
+  parallel using \texttt{concurrent.futures}.
+\item
+  \textbf{Consensus:} The scores and feedback from each agent are
+  collected. The final score is typically the mean or median of the
+  agents' scores, and the variance is used as a confidence metric.
+\item
+  \textbf{Final Review:} A final ``meta-agent'' reviews the collected
+  feedback and synthesizes it into a single, high-quality explanation.
+\end{enumerate}
+
+\hypertarget{code-grader-code_grader.py}{%
+\subsubsection{\texorpdfstring{\textbf{4.3. Code Grader
+(\texttt{code\_grader.py})}}{4.3. Code Grader (code\_grader.py)}}\label{code-grader-code_grader.py}}
+
+The code grader provides a secure and comprehensive way to evaluate
+programming assignments:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Sandboxed Execution:} Student code is executed within a
+  secure, isolated Docker container to prevent any potential security
+  risks.
+\item
+  \textbf{Unit Testing:} The code is run against a set of predefined
+  \texttt{unittest} cases. The results (pass/fail) form the basis of the
+  objective score.
+\item
+  \textbf{Qualitative Feedback:} An LLM analyzes the student's code,
+  along with the unit test results, to provide qualitative feedback on
+  code style, efficiency, best practices, and potential areas for
+  improvement.
+\end{enumerate}
+
+\hypertarget{rag-integration-rag_integration.py}{%
+\subsubsection{\texorpdfstring{\textbf{4.4. RAG Integration
+(\texttt{rag\_integration.py})}}{4.4. RAG Integration (rag\_integration.py)}}\label{rag-integration-rag_integration.py}}
+
+To ensure consistency over time, the grading engine uses Retrieval
+Augmented Generation (RAG):
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Vector Store:} When a human-in-the-loop correction is made,
+  the grading context (question, student answer, corrected feedback) is
+  embedded and stored in a FAISS vector store.
+\item
+  \textbf{Contextual Retrieval:} When grading a new submission, the
+  engine queries the vector store to find the most similar previously
+  graded examples.
+\item
+  \textbf{Prompt Injection:} These historical examples are injected into
+  the LLM prompt, providing valuable context that helps the model
+  ``remember'' how similar cases were graded in the past.
+\end{enumerate}
+
+\hypertarget{explainability-module-explainer.py}{%
+\subsubsection{\texorpdfstring{\textbf{4.5. Explainability Module
+(\texttt{explainer.py})}}{4.5. Explainability Module (explainer.py)}}\label{explainability-module-explainer.py}}
+
+This module is responsible for generating the detailed, rubric-aligned
+justifications for the final score. It takes the grading results and
+structures them into a clear, easy-to-understand format that explains
+which criteria were met and why.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{model-management-future-work}{%
+\subsection{5. Model Management (Future
+Work)}\label{model-management-future-work}}
+
+The current release focuses on deterministic prompts, retrieval
+grounding, and manual human-in-the-loop corrections. Automated
+fine-tuning workflows, adapter management, and associated tooling (e.g.,
+Colab scripts or additional Streamlit pages) are explicitly out of scope
+and will be revisited when institutional requirements call for managed
+MLOps support.
