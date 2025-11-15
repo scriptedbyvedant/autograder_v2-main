@@ -8,6 +8,9 @@ credentials.yaml
 .vscode/
 *.swp
 
+# Hidden directories
+.*/
+
 # Python
 __pycache__/
 *.pyc
