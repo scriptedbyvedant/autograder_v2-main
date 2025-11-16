@@ -23,6 +23,9 @@ graph TD
         B -->|Function Calls| C{Backend Logic}
         C -->|SQL Queries| D[PostgreSQL Database]
         C -->|Grading Jobs| E{AI Grading Engine}
+        C -->|ZIP ingest/export| I{ILIAS Parser & FeedbackZipGenerator}
+        I --> D
+        B --> I
     end
 
     subgraph AI & Data Layer
@@ -76,20 +79,23 @@ sequenceDiagram
     participant Backend as Backend Logic
     participant DB as PostgreSQL DB
     participant Engine as AI Grading Engine
+    participant ILIAS as ILIAS Parser / Exporter
 
-    User->>UI: Uploads Assignment PDF (Questions, Rubric)
-    UI->>Backend: Parses PDF, extracts data
-    Backend->>DB: INSERT into `prof_data` table
+    User->>UI: Uploads Assignment PDF or ILIAS ZIP
+    UI->>Backend: Parses PDF/ZIP, extracts data & manifest
+    Backend->>ILIAS: Normalise filenames, map to students
+    ILIAS-->>Backend: JSON/manifest
+    Backend->>DB: INSERT into `prof_data`
     DB-->>Backend: Confirms save
 
-    User->>UI: Uploads Student Submissions (PDFs)
-    UI->>Backend: Parses PDFs
-    Backend->>DB: INSERT into `student_data` table
+    User->>UI: Uploads Student Submissions (PDFs or ZIP)
+    UI->>Backend: Parses PDFs / ZIP contents
+    Backend->>DB: INSERT into `student_data`
     DB-->>Backend: Confirms save
 
     User->>UI: Clicks "Start Grading"
     UI->>Backend: Initiates grading job
-    Backend->>Engine: Dispatches job with submissions and rubric
+    Backend->>Engine: Dispatches job with submissions + criteria
     
     Engine->>Engine: Spawns multiple AI agents
     loop For Each Agent
@@ -107,6 +113,9 @@ sequenceDiagram
     UI->>Backend: Submits correction
     Backend->>DB: UPDATE `grading_results` (sets `new_score`, `new_feedback`)
     Backend->>Engine: Stores correction in Vector Store for future RAG
+    User->>UI: Clicks "Download Feedback"
+    UI->>ILIAS: Request LMS-ready ZIP
+    ILIAS-->>User: Returns ILIAS-compatible archive
 ```
 
 ### 1.5. Future-State Cloud Architecture (Google Cloud)
@@ -250,4 +259,3 @@ This page acts as a user-friendly orchestrator for a complex MLOps task.
     *   A button, `"Generate Training Data"`, triggers the `generate_training_data` function.
     *   Upon successful generation (if `st.session_state['generated_training_data']` exists), a `st.download_button` is rendered, allowing the user to save the `.jsonl` file.
     *   A `st.code` block displays the full, static content of the `colab_finetune.py` script, providing a clear, read-only view with a copy button for user convenience.
-

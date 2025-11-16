@@ -621,6 +621,15 @@ The consensus architecture reduces MAE by 39\% relative to the single-agent base
 
 Table~\ref{tab:mae_pearson} also provides a baseline for interpreting subsequent evaluation metrics. The single-agent row represents the original thesis prototype: average absolute errors of 4.6 points were common when the grader handled nuanced answers alone. Incorporating multiple agents, retrieval, and human exemplars pulled that error down to 2.8 points and pushed Pearson correlation into the ``strong agreement'' band. The human row reminds the reader that our ceiling remains the lecturer gold standard; the objective is to approach it as closely as possible while keeping educators in control.
 
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=0.9\textwidth}
+    \includegraphics{evaluation_reports/figure_accuracy.png}
+  \end{adjustbox}
+  \caption{AI vs.\ lecturer score agreement across the synthetic evaluation set. The multi-agent grader reduces absolute error and tightens variance relative to the single-model baseline.}
+  \label{fig:ai_vs_human_accuracy}
+\end{figure}
+
 \section{Multi-Agent Reliability (Krippendorff's $\alpha$)}
 \label{sec:reliability}
 
@@ -635,6 +644,24 @@ DeepEval rubric alignment improves from 63\% for the baseline to 82\% for the mu
 \label{sec:code_performance}
 
 Evaluated on 40 Python programming submissions with hidden unit tests, the secure code grader exhibits a 100\% sandbox execution success rate under 5-second CPU and 256\,MB RAM constraints. Functional outcomes match instructor pass/fail decisions in 92\% of cases. Qualitative feedback averages 4.0/5 from reviewers; the few false positives stemmed from transient API rate limits, prompting the addition of retry and exponential backoff policies.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=0.9\textwidth}
+    \includegraphics{evaluation_reports/figure_llm_accuracy.png}
+  \end{adjustbox}
+  \caption{Comparative LLM accuracy (text and code agreement) on the synthetic benchmark. LLaMA~3 8B yields the highest accuracy with a modest latency trade-off.}
+  \label{fig:llm_comparison_accuracy}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{center,max width=0.9\textwidth}
+    \includegraphics{evaluation_reports/figure_llm_cost_latency.png}
+  \end{adjustbox}
+  \caption{Latency and estimated token cost per response for the evaluated LLMs. Mistral offers the best cost/latency balance for local runs; LLaMA~3 is slower but more accurate.}
+  \label{fig:llm_comparison_latency}
+\end{figure}
 
 \section{Extended Evaluation Artefacts}
 \label{sec:extended_eval_summary}

@@ -17,6 +17,9 @@ graph TD
     C --> E{AI Grading Engine};
     E --> F[LLM APIs / Local Models];
     E --> G[Vector Store];
+    C --> H{ILIAS ZIP Parser / FeedbackZipGenerator};
+    H --> D;
+    B --> H;
 
     subgraph User Interface
         B
@@ -25,6 +28,7 @@ graph TD
     subgraph Core Logic & Data
         C
         D
+        H
     end
 
     subgraph AI Processing
