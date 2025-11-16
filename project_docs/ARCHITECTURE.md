@@ -34,11 +34,12 @@ graph TD
     end
 ```
 
-*   **Frontend:** A multi-page Streamlit application provides the user interface for professors and teaching assistants.
+*   **Frontend:** A multi-page Streamlit application provides the user interface for professors and teaching assistants, including dual ingestion paths (PDFs or ILIAS ZIP archives) and a one-click feedback export builder.
 *   **Backend:** A Python backend orchestrates the application logic, handling user requests, database interactions, and calls to the grading engine.
 *   **Database:** A PostgreSQL database stores all persistent data, including user information, assignment details, student submissions, and grading results.
 *   **AI Grading Engine:** A modular engine that leverages Large Language Models (LLMs) to perform the grading. It includes specialized modules for different types of assignments.
 *   **Vector Store:** A FAISS-based vector database stores embeddings of past grading decisions to provide historical context (RAG).
+*   **LMS Bridges:** ILIAS ingest and feedback export utilities map LMS ZIP archives into per-student records and rebuild graded ZIPs that can be re-uploaded without manual renaming.
 
 ---
 
@@ -51,9 +52,10 @@ The frontend is built using Streamlit and is organized into a multi-page applica
 *   `app.py`: The main entry point of the Streamlit application. It handles routing and global configuration.
 *   `pages/`: This directory contains the individual pages of the application, such as:
     *   `0_auth.py`: User authentication.
-    *   `1_upload_data.py`: Interface for professors to upload assignment PDFs and for students to submit their work.
-    *   `2_grading_result.py`: Displays the results of the grading process.
-    *   `3_dashboard.py`: Cohort-level analytics, exports, and collaboration aids.
+*   `1_upload_data.py`: Interface for professors to upload assignment PDFs, students to submit their work, or staff to ingest an ILIAS archive ZIP via `parse_ilias_zip` (manifests, per-student mapping, and validation preview).
+*   `2_grading_result.py`: Displays the results of the grading process.
+*   `3_dashboard.py`: Cohort-level analytics, exports, and collaboration aids.
+*   `Download Feedback`: A control on the grading page that calls `FeedbackZipGenerator` to package the latest `new_score/new_feedback` into LMS-ready PDFs and a ZIP that matches ILIAS folder/filename conventions.
     *   `3_collaboration_center.py`: Optional workflow for sharing graded artefacts with colleagues.
 
 ### **2.2. Authentication and Session Management**

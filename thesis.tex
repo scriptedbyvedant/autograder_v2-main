@@ -29,12 +29,14 @@
 \newcommand{\reprtstudentname}{VEDANT SHIVNEKAR}
 \newcommand{\reprtstudentid}{217490}
 \urldef{\reprtstudentmail}\url{vshivnekar@stud.hs-heilbronn.de}
+\hyphenation{multi-agent multi-agentic rubric-aligned explain-ability}
 
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 \newcommand{\codeword}[1]{\texttt{\detokenize{#1}}}
 
 \usepackage[headsepline]{scrlayer-scrpage}
+\setlength{\headheight}{36pt}
 \pagestyle{scrheadings}
 \clearscrheadfoot
 \ihead{\hhnsubject: \reprttopic}
@@ -68,24 +70,26 @@
 \section{Motivation}
 \label{sec:motivation}
 
-The growing scale of modern education has created a significant challenge in providing timely and substantive feedback on complex student assignments. Although early automated graders succeeded with objective questions, they failed to evaluate the nuanced, subjective work common in higher education. The advent of Large Language Models (LLMs) presented a promising path forward, and a foundational version of this framework confirmed their potential. However, its reliance on a single LLM proved to be a critical limitation, resulting in inconsistent scoring, susceptibility to model-specific biases, and an opaque ``black box'' reasoning process that undermined trust from both educators and students.
+The fast growth of modern education has made it increasingly difficult for teachers to provide timely, meaningful feedback on complex student tasks.  Early automated grading systems worked well on objective, highly organized questions, but they were unable to judge the complex and subjective responses common in higher education.  The introduction of Large Language Models (LLMs) appeared to be a breakthrough, and the project's early prototype indicated their potential.  However, reliance on a single LLM brought many constraints, such as uneven scoring, vulnerability to model-specific biases, and a lack of explicit reasoning, ultimately eroding trust between educators and students.
 
-This Master's thesis is motivated by the need to overcome these flaws to build a truly reliable educational tool. We present the evolution of the initial prototype into a sophisticated Multi-Agent Grading System. This core innovation replaces the monolithic model with a collaborative framework in which multiple specialized AI agents analyze, debate, and reach a consensus on a final score. The primary research goal is to demonstrate that this agentic consensus mechanism produces more accurate, reliable, and trustworthy evaluations than the single-agent baseline, directly addressing the critical need for fairness and consistency in automated assessment.
+This thesis is driven by the need to address these shortcomings and develop a dependable, educator-aligned grading system. The work advances the original prototype into a Multi-Agent Grading System, where several specialized AI agents independently evaluate each submission and then form a consensus. This collaborative process is designed to deliver more accurate, stable, and trustworthy assessments than a single-model grader, directly tackling concerns around fairness and consistency in automated evaluation.
 
-To support this multi-agent architecture and transform it into a comprehensive solution, several key capabilities were developed. A Retrieval Augmented Generation (RAG) pipeline was integrated to provide agents with historical context, ensuring consistent scoring over time. To expand the system's utility, a secure, sandboxed code classification module was engineered to handle programming assignments through a combination of objective unit testing and AI-driven qualitative feedback. Finally, to ensure transparency and pedagogical value, a robust Explainable AI (XAI) module generates clear rubric-aligned justifications for every score. Together, these advancements work to create a reliable grading assistant that empowers educators and enriches the student learning experience.
+To fully realize this multi-agent approach, several supporting components were developed. A Retrieval-Augmented Generation (RAG) pipeline supplies agents with relevant historical context, preventing scoring drift across large batches. A secure, sandboxed code-grading module extends the system to programming assignments by combining objective unit tests with qualitative, AI-generated feedback. Additionally, an Explainable AI (XAI) module provides clear, rubric-aligned explanations for every score, enhancing transparency and instructional value. Together, these elements create a robust grading assistant designed to support educators and enrich student learning.
 
 \section{Problem Statement}
 \label{sec:problem_statement}
 
-The increasing scale of modern education, particularly in higher education and online learning, has created a significant bottleneck in the assessment process. The manual, time-intensive nature of grading complex, subjective assignments fundamentally limits an educator's ability to provide the timely and detailed feedback that is critical for student learning. While LLMs have shown remarkable promise in understanding and evaluating nuanced text, a naive, single-model implementation introduces a distinct set of problems that prevent its adoption as a trustworthy pedagogical tool. The foundational single-agent prototype of this system highlighted these very issues, which this thesis aims to solve.
+The rapid growth of higher education and online learning has placed increasing pressure on assessment workflows. Grading complex, subjective assignments is time-consuming, and relying solely on manual evaluation limits an instructor’s ability to provide the timely, detailed feedback necessary for effective learning. Although Large Language Models (LLMs) have shown strong potential for analyzing nuanced student responses, a straightforward single-model grading approach introduces several fundamental issues that prevent its use as a trustworthy educational tool. These limitations were evident in the initial prototype of this system and form the core challenges this thesis seeks to address.
 
-The first and most critical issue is the problem of reliability and trust. A single LLM acting as a solitary grader constitutes an unaccountable, non-deterministic ``black box.'' Its evaluations can be subject to the inherent biases of its training data and may produce inconsistent scores for work of similar quality, making it a single point of failure in a high-stakes process. This lack of verifiable reliability erodes trust from both educators, who are ultimately responsible for fair assessment, and students, who require confidence that their work has been graded equitably. Without a mechanism for verification or consensus, a single agent's judgment remains absolute and fundamentally untrustworthy for real-world academic use.
+The first challenge concerns reliability and trust. When a single LLM serves as the sole grader, its decisions become opaque and unverifiable. Because such models are non-deterministic and influenced by their training data, they may assign inconsistent scores to work of similar quality. This makes the model a single point of failure in a high-stakes academic process. The absence of a mechanism to cross-check or validate its judgments undermines confidence among educators and students alike, both of whom depend on fair and defensible evaluations.
 
-Secondly, a single-agent system suffers from the problem of contextual consistency. An automated grader operating in a stateless manner treats every submission as an isolated event, lacking awareness of the grading decisions made on previous submissions within the same assignment. This ``contextual amnesia'' can lead to ``grading drift,'' where the application of rubric criteria unintentionally shifts over the course of grading a large batch of work. This creates an inequitable environment where the timing of a submission can subtly influence the final grade, violating the principle of standardized assessment.
+The second challenge is contextual inconsistency. A single-agent grader processes each submission independently, without awareness of previously graded work in the same assignment. This lack of continuity—often referred to as “contextual amnesia”—can lead to grading drift, where rubric criteria are applied differently across the grading session. As a result, two students who produce comparable answers may receive different scores simply because their work was evaluated at different times, violating principles of fairness and standardized assessment.
 
-Furthermore, a general-purpose language model is not equipped to handle the problem of domain-specific evaluation, most notably in fields like computer science. Grading code involves more than just evaluating text; it requires objective, functional testing within a secure, sandboxed environment to determine correctness. A standard LLM, by its nature, cannot execute code to verify its functionality, rendering it incapable of providing the definitive, execution-based feedback that is essential for computer science education. It can only offer stylistic suggestions without confirming if the code even works, a critical failure in this domain.
+A third limitation arises from domain-specific demands, particularly in areas like computer science. Effective code evaluation requires more than language understanding alone; it depends on functional execution, unit testing, and secure sandboxing. A general-purpose LLM cannot run code or verify functional correctness, leaving it unable to provide accurate, execution-based assessments. At best, it can offer stylistic commentary, which is insufficient in contexts where correctness is fundamentally tied to behavior rather than prose.
 
-Finally, the entire system is undermined by the problem of pedagogical value and explainability. The primary goal of assessment is not merely to assign a score, but to facilitate learning. A grade delivered without a clear, actionable justification is a missed opportunity. The generic output from a base LLM often fails to explicitly connect its evaluation back to the specific criteria outlined in an official rubric. This leaves students confused about how their grade was determined and what steps they need to take to improve, ultimately failing the core educational mission of the assessment process. These compounding issues demonstrate that a simple, single-agent architecture is insufficient for creating a viable and ethical automated grading system, establishing the central problem this thesis addresses: the need for a more sophisticated, multi-agent framework to enable reliable, consistent, and transparent automated assessment.
+Finally, single-model graders fall short in pedagogical value and explainability. Assessment should help students understand their strengths and weaknesses, yet base LLM outputs often lack clear justification tied to rubric criteria. Without explicit, structured feedback, students may not understand why they received a particular score or how to improve. This reduces the instructional purpose of grading and diminishes the educational impact of automated assessment.
+
+Taken together, these issues illustrate that a simple, single-agent grading architecture is not adequate for responsible or scalable deployment in academic settings. This thesis therefore addresses the need for a more advanced, multi-agent system capable of delivering reliable, consistent, transparent, and pedagogically meaningful automated assessment.
 
 \section{Research Goals}
 \label{sec:research_goals}
@@ -310,8 +314,9 @@ Continuous validation is orchestrated through a lightweight GitHub Actions pipel
 
 The Educator Guide packaged with the repository documents the end-to-end lecturer experience and functions as the operational counterpart to the technical methodology above. It divides the workflow into three phases:
 \begin{enumerate}
-  \item \textbf{Upload}: Professors load rubric PDFs and student submissions via the ``Upload Data'' page. The guide emphasises providing machine-readable PDFs and validates successful ingestion before progressing.
+  \item \textbf{Upload}: Instructors load criteria PDFs and student submissions via the ``Upload Data'' page, or ingest a full ILIAS archive ZIP. The ZIP path uses \codeword{parse\_ilias\_zip} to unpack the LMS export, map files to students, and surface a manifest preview before grading begins.
   \item \textbf{Grading and Review}: On the ``Grading Result'' page, the AI-generated \codeword{old_score}/\codeword{old_feedback} pairs appear in an editable Streamlit table. Educators remain the final arbiters—any edits populate the \codeword{new_score}/\codeword{new_feedback} columns and trigger the human-in-the-loop loop described in Section~\ref{sec:hitl_pipeline}.
+  \item \textbf{Export for LMS}: Once review is complete, the ``Download Feedback'' control runs \codeword{FeedbackZipGenerator} to produce an LMS-ready archive (including per-student PDFs) that mirrors ILIAS naming and folder conventions, so instructors can re-upload graded feedback without manual renaming.
 \end{enumerate}
 The guide also captures best practices (e.g., ensuring OCR-friendly PDFs), outlines how corrections immediately improve future grading consistency through RAG, and provides troubleshooting advice for common ingestion or grading anomalies. A comprehensive, click-by-click walkthrough is included in Appendix~\ref{app:educator_workflow}, ensuring the operational guardrails remain available without interrupting the main narrative.
 
@@ -364,32 +369,32 @@ The system is engineered as a modern, multi-tiered application that promotes mod
 
 In the \textbf{User Layer}, instructors authenticate, upload materials, launch grading runs, and review results via Streamlit. This tier enforces HTTPS/TLS, manages session state, and surfaces immediate feedback (e.g., toast notifications for corrections).
 
-The \textbf{Application Layer} centralises domain logic. The backend service validates payloads, schedules grading jobs, and records outcomes, while PostgreSQL guarantees durable, relational storage for rubrics, submissions, and grading history.
+The \textbf{Application Layer} centralises domain logic. The backend service validates payloads, schedules grading jobs, and records outcomes, while PostgreSQL guarantees durable, relational storage for criteria, submissions, and grading history.
 
 Finally, the \textbf{AI \& Data Layer} executes the heavy lifting. The grading engine brokers prompts to local or API-based LLMs, consults the FAISS vector store for retrieval-augmented context, and spins up Docker containers to safely run untrusted code, keeping the host environment isolated.
 
-The explicit contracts drawn between layers (HTTPS, function-call APIs, SQL, and embedding interfaces) make it straightforward to evolve the platform—for example, swapping in a different UI or vector store—without disturbing the other tiers.
+The explicit contracts drawn between layers (HTTPS, function-call APIs, SQL, and embedding interfaces) make it straightforward to evolve the platform—for example, swapping in a different UI or vector store—without disturbing the other tiers. They also enable add-ons such as the ILIAS ingest/export path: the ingestion services plug into the same backend contracts, while the FeedbackZipGenerator attaches to the UI/API boundary without touching the grading core.
 
 Viewed end-to-end, Figure~\ref{fig:high_level_arch} also emphasises the safety barriers between components. User interactions never touch the AI layer directly; instead requests traverse the backend, which performs validation and logging before reaching model runtimes or the sandbox. Likewise, data returned from the AI layer is persisted only via the backend so that every grade, explanation, or code execution trace is captured in PostgreSQL for auditing.
 
 \section{Data Ingestion and Preprocessing Module}
 \label{sec:data_ingestion}
 
-The operational workflow begins with the data ingestion and preprocessing module. Through the ``Upload Data'' page in the Streamlit UI, an educator uploads assignment materials in a semi-structured PDF format, as shown in Listing~\ref{lst:prof_pdf_format}. This front-door experience mirrors the two primary personas the system supports: instructors curating rubrics and students submitting coursework.
+The operational workflow begins with the data ingestion and preprocessing module and supports two intake modes. Through the ``Upload Data'' page in the Streamlit UI, an educator can upload assignment materials in a semi-structured PDF format, as shown in Listing~\ref{lst:prof_pdf_format}, or provide an ILIAS archive ZIP. The ZIP route runs through \codeword{parse\_ilias\_zip}, which unpacks the LMS export, normalises filenames, maps submissions to student identities, and surfaces a manifest preview so instructors can confirm coverage before grading. This front-door experience mirrors the two primary personas the system supports: instructors curating criteria and students submitting coursework.
 
-\begin{lstlisting}[language={}, caption={Example professor PDF submission format}, label={lst:prof_pdf_format}, basicstyle=\ttfamily\footnotesize, breaklines=true]
-Professor: Dr. Smith
+\begin{lstlisting}[language={}, caption={Example instructor PDF submission format}, label={lst:prof_pdf_format}, basicstyle=\ttfamily\footnotesize, breaklines=true]
+Instructor: Dr. Smith
 Course: AI Fundamentals
 Assignment No: 2
 
 Q1:
 Question: Explain supervised vs. unsupervised learning.
 Ideal Answer: Supervised learning uses labeled data...
-Rubric:
+Criteria:
 - Correct definition (2 pts)
 \end{lstlisting}
 
-Upon upload, the backend passes the file to a dedicated parser module that extracts metadata, questions, ideal answers, and rubric criteria. The rubric is converted into a structured JSON object and persisted in the \texttt{prof\_data} table, ensuring the AI engine has machine-readable criteria to grade against. The dual professor and student ingestion flows are summarised in Figure~\ref{fig:data_ingestion}.
+Upon upload, the backend passes the file to a dedicated parser module that extracts metadata, questions, ideal answers, and grading criteria. The criteria is converted into a structured JSON object and persisted in the \texttt{prof\_data} table, ensuring the AI engine has machine-readable criteria to grade against. The dual instructor and student ingestion flows are summarised in Figure~\ref{fig:data_ingestion}.
 
 \begin{figure}[htbp]
   \centering
@@ -402,11 +407,11 @@ Upon upload, the backend passes the file to a dedicated parser module that extra
     flowstep/.style={draw, rounded corners, thick, fill=white, align=center, minimum width=4.0cm, minimum height=0.9cm},
     arrow/.style={-{Latex[length=3mm,width=2mm]}, thick}
   ]
-    \node[flowstep] (prof1) {Professor uploads assignment PDF};
+    \node[flowstep] (prof1) {Instructor uploads assignment PDF or ILIAS ZIP};
     \node[flowstep, below=of prof1] (prof2) {Streamlit forwards file to backend};
-    \node[flowstep, below=of prof2] (prof3) {Parser extracts text and structure};
+    \node[flowstep, below=of prof2] (prof3) {Parser extracts text, structure, and LMS manifest};
     \node[flowstep, below=of prof3] (prof4) {Structured data stored in \texttt{prof\_data}};
-    \node[draw, dashed, rounded corners, thick, fit=(prof1)(prof4), inner sep=8pt, label=above:{Professor Workflow}] (profbox) {};
+    \node[draw, dashed, rounded corners, thick, fit=(prof1)(prof4), inner sep=8pt, label=above:{Instructor PDF/ILIAS Workflow}] (profbox) {};
 
     \node[flowstep, right=6cm of prof1] (stu1) {Student uploads submission PDF};
     \node[flowstep, below=of stu1] (stu2) {Backend extracts submission text};
@@ -422,13 +427,13 @@ Upon upload, the backend passes the file to a dedicated parser module that extra
     \draw[arrow] (prof3.east) to[out=0,in=180] node[above, font=\scriptsize, yshift=4pt]{Shared parser and Postgres handler} (stu2.west);
   \end{tikzpicture}
   \end{adjustbox}
-\caption{Data ingestion pipeline. The left swim lane captures the instructor flow from PDF upload to structured rubric storage, while the right lane shows how student submissions are parsed and stored alongside their metadata via the shared parser and Postgres handler.}
+\caption{Data ingestion pipeline. The left swim lane captures the instructor flow from PDF upload or ILIAS ZIP ingest (manifest + criteria) to structured rubric storage, while the right lane shows how student submissions are parsed and stored alongside their metadata via the shared parser and Postgres handler.}
 \label{fig:data_ingestion}
 \end{figure}
 
-In practice, both workflows reuse the same parser abstractions, ensuring that rubrics and submissions end up in compatible JSON representations. The Postgres handler encapsulates all SQL operations, allowing data validation (e.g., assignment matching) to occur before persistence, and guaranteeing that downstream modules consume well-formed records.
+In practice, both workflows reuse the same parser abstractions, ensuring that criteria and submissions end up in compatible JSON representations. The Postgres handler encapsulates all SQL operations, allowing data validation (e.g., assignment matching) to occur before persistence, and guaranteeing that downstream modules consume well-formed records.
 
-Figure~\ref{fig:data_ingestion} is intentionally symmetric: every artefact (course metadata, questions, ideal answers, individual student responses) passes through PyMuPDF extraction, regular-expression structuring, and ultimately the \codeword{PostgresHandler}. The dashed swim-lane borders indicate responsibilities instructors and students never cross—the educator never touches student submissions, and vice versa—while the shared arrow at the centre highlights the reusable parsing code path that keeps both datasets aligned for downstream grading.
+Figure~\ref{fig:data_ingestion} is intentionally symmetric: every artefact (course metadata, questions, ideal answers, individual student responses) passes through PyMuPDF extraction, regular-expression structuring, and ultimately the \codeword{PostgresHandler}. For the LMS route, \codeword{parse\_ilias\_zip} injects a manifest preview so instructors can verify coverage before grading, and normalises filenames so downstream grading and exports can mirror ILIAS conventions. The dashed swim-lane borders indicate responsibilities instructors and students never cross—the educator never touches student submissions, and vice versa—while the shared arrow at the centre highlights the reusable parsing code path that keeps both datasets aligned for downstream grading.
 
 \section{End-to-End Grading Flow}
 \label{sec:end_to_end_flow}
@@ -463,6 +468,11 @@ The high-level grading pipeline in Figure~\ref{fig:core_grading_pipeline} consol
 The pipeline emphasises the separation between compute-heavy grading and stateful persistence. Once the backend dispatches a job, the AI engine runs asynchronously, posts results back to the database, and issues a Streamlit event to refresh the data editor. This pattern keeps user interactions responsive while long-running model calls execute in the background.
 
 To read Figure~\ref{fig:core_grading_pipeline} from left to right: (1) the lecturer initiates grading via Streamlit; (2) the backend retrieves the exact rubric and student batch to avoid accidental mismatches; (3) the grading engine invokes the consensus workflow; (4) calculated scores, feedback, and confidence intervals are written atomically to PostgreSQL; and (5) the frontend pulls the fresh records into the editable table. Each arrow reflects an auditable API boundary, ensuring that failures (e.g., engine timeout, database constraint violation) can be surfaced to the user with precise remediation guidance.
+
+\section{Analytics Dashboard and LMS Export}
+\label{sec:dashboard_export}
+
+The Streamlit dashboard (\codeword{pages/3_dashboard.py}) exposes filters by course, semester, language, and assignment, along with variance and drift indicators derived from consensus variance and DeepEval metrics. Educators can pivot between cohort rollups and per-criterion views, export CSV/PDF summaries, and verify that recent human corrections closed gaps surfaced by the RAG memory. On the grading page, the ``Download Feedback'' control triggers \codeword{FeedbackZipGenerator} to package the latest \codeword{new_score}/\codeword{new_feedback} into per-student PDFs and an ILIAS-compatible ZIP; this mirrors LMS folder and filename conventions, so uploads back to ILIAS require no manual renaming.
 
 \section{The Multi-Agent Grading Engine}
 \label{sec:multi_agent_engine}
@@ -557,7 +567,7 @@ Figure~\ref{fig:hitl_pipeline} traces the correction pathway from the Streamlit 
 
 Post-update, the revised example is immediately available for retrieval, allowing the next grading job to reference the freshly corrected feedback and reinforcing rubric adherence across batches.
 
-Figure~\ref{fig:hitl_pipeline} can be read as a feedback loop. When the educator updates a cell, Streamlit sends the full row to the backend, which validates (for example, that scores remain within rubric bounds) before writing to \codeword{grading_results}. A background task converts the correction into an embedding and upserts it into FAISS. Once the index confirms the write, the backend surfaces a success toast, signalling that the corrected exemplar is part of the system memory and ready to guide the next grading batch.
+Figure~\ref{fig:hitl_pipeline} can be read as a feedback loop. When the educator updates a cell, Streamlit sends the full row to the backend, which validates (for example, that scores remain within criteria bounds) before writing to \codeword{grading_results}. A background task converts the correction into an embedding and upserts it into FAISS. Once the index confirms the write, the backend surfaces a success toast, signalling that the corrected exemplar is part of the system memory and ready to guide the next grading batch. After corrections are applied, the ``Download Feedback'' control bundles the latest \codeword{new_score}/\codeword{new_feedback} per student into PDFs and zips them via \codeword{FeedbackZipGenerator}. The resulting archive mirrors ILIAS naming and folder conventions so instructors can re-upload graded artefacts directly to the LMS without manual sorting.
 
 \section{The Secure Code Grader Module}
 \label{sec:secure_code_grader}
@@ -576,30 +586,6 @@ The PostgreSQL schema underpins the system. The \texttt{grading\_results} table 
   \item \textbf{Correction:} Educator edits update the relevant row, and the new data point is embedded into the FAISS index, closing the human-in-the-loop cycle.
 \end{enumerate}
 
-\chapter{Extended Architecture Reference}
-\label{chap:extended_architecture}
-
-\input{appendices/architecture_appendix.tex}
-
-\chapter{Detailed Data Flow Pipelines}
-\label{chap:detailed_data_flow}
-
-\input{appendices/data_flow_appendix.tex}
-
-\chapter{Software Design Specification}
-\label{chap:software_design_spec}
-
-\input{appendices/design_appendix.tex}
-
-\chapter{Evaluation Playbook}
-\label{chap:evaluation_playbook}
-
-\input{appendices/evaluation_appendix.tex}
-
-\chapter{Educator Handbook}
-\label{chap:educator_handbook}
-
-\input{appendices/educator_guide_appendix.tex}
 
 \chapter{Results and Evaluation}
 \label{chap:results}
@@ -674,6 +660,1198 @@ Several limitations remain. Evaluation relied on partially synthetic lecturer an
 \clearpage
 
 \appendix
+
+\chapter{Extended Architecture Reference}
+\label{chap:extended_architecture}
+\label{app:extended_architecture}
+
+% --- Begin inline copy of architecture_appendix.tex ---
+\section{Application Architecture}
+
+This document provides a detailed overview of the technical architecture of the automated grading application. It is intended for developers and system administrators. 
+
+\medskip\hrule\medskip
+
+\subsection{1. High-Level Overview}
+
+The application is a multi-tiered system composed of a web-based frontend, a robust backend with a relational database, and a sophisticated AI-powered grading engine. 
+
+\begin{verbatim}
+graph TD
+    A[Browser] --> B{Streamlit Frontend};
+    B --> C{Backend Server};
+    C --> D[PostgreSQL Database];
+    C --> E{AI Grading Engine};
+    E --> F[LLM APIs / Local Models];
+    E --> G[Vector Store];
+
+    subgraph User Interface
+        B
+    end
+
+    subgraph Core Logic & Data
+        C
+        D
+    end
+
+    subgraph AI Processing
+        E
+        F
+        G
+    end
+\end{verbatim}
+
+\begin{itemize}
+  \item \textbf{Frontend:} A multi-page Streamlit application provides the user interface for professors and teaching assistants.
+  \item \textbf{Backend:} A Python backend orchestrates the application logic, handling user requests, database interactions, and calls to the grading engine.
+  \item \textbf{Database:} A PostgreSQL database stores all persistent data, including user information, assignment details, student submissions, and grading results.
+  \item \textbf{AI Grading Engine:} A modular engine that leverages Large Language Models (LLMs) to perform the grading. It includes specialized modules for different types of assignments.
+  \item \textbf{Vector Store:} A FAISS-based vector database stores embeddings of past grading decisions to provide historical context (RAG).
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{2. Frontend (Streamlit Application)}
+
+The frontend is built using Streamlit and is organized into a multi-page application structure. 
+
+\subsubsection{\textbf{2.1. Directory Structure}}
+
+\begin{itemize}
+  \item \codeword{app.py}: The main entry point of the Streamlit application. It handles routing and global configuration.
+  \item \codeword{pages/}: This directory contains the individual pages of the application, such as:
+  \item \codeword{0\_auth.py}: User authentication.
+  \item \codeword{1\_upload\_data.py}: Interface for professors to upload assignment PDFs and for students to submit their work.
+  \item \codeword{2\_grading\_result.py}: Displays the results of the grading process.
+  \item \codeword{3\_fine\_tuning.py}: The user-friendly interface for fine-tuning the model.
+\end{itemize}
+
+\subsubsection{\textbf{2.2. Authentication and Session Management}}
+
+Authentication is managed through the \codeword{auth} module. User session data, including login status and user roles, is stored in \codeword{st.session\_state}. This ensures that sensitive pages are protected and that the application context is maintained as the user navigates between pages. 
+
+\medskip\hrule\medskip
+
+\subsection{3. Backend and Database}
+
+The backend logic is tightly integrated with the PostgreSQL database, which serves as the single source of truth. 
+
+\subsubsection{\textbf{3.1. Database Schema}}
+
+The database consists of several key tables: 
+
+\begin{itemize}
+  \item \codeword{users}: Stores user credentials and roles (e.g., professor, assistant).
+  \item \codeword{prof\_data}: Contains the data uploaded by professors, including the course, assignment number, questions, ideal answers, and grading rubrics.
+  \item \codeword{student\_data}: Stores student submissions, linked to a specific assignment.
+  \item \codeword{grading\_results}: This is the central table for storing the output of the grading engine. It includes the original student answer, the AI-generated score and feedback (\codeword{old\_feedback}), and any human-in-the-loop corrections (\codeword{new\_feedback}, \codeword{new\_score}).
+\end{itemize}
+
+\subsubsection{\textbf{3.2. Data Handler (\codeword{database/postgres\_handler.py})}}
+
+All database interactions are abstracted away by the \codeword{PostgresHandler} class. This class provides a standardized interface for executing queries (SELECT, INSERT, UPDATE) and managing connections. This centralized approach ensures consistency and simplifies database management. 
+
+\medskip\hrule\medskip
+
+\subsection{4. The AI Grading Engine (\codeword{grader\_engine/})}
+
+This is the core of the application where the AI-powered grading takes place. 
+
+\begin{verbatim}
+graph TD
+    A[Request from Backend] --> B{Router};
+    B --> |Text| C[Text Grader];
+    B --> |Code| D[Code Grader];
+    B --> |Multi-Agent| E[Multi-Agent Grader];
+    B --> |Multimodal| F[Multimodal Grader];
+
+    C --> G{RAG Integration};
+    E --> G;
+    
+    G --> H[Vector Store];
+    C --> I{Explainability Module};
+    E --> I;
+
+    I --> J[Final Grade & Feedback];
+\end{verbatim}
+
+\subsubsection{\textbf{4.1. Router (\codeword{router.py})}}
+
+The \codeword{Router} is the main entry point for the grading engine. It inspects the assignment type (e.g., text, code, multimodal) and directs the request to the appropriate specialized grader. 
+
+\subsubsection{\textbf{4.2. Multi-Agent Grader (\codeword{multi\_agent.py})}}
+
+To improve reliability and reduce bias, the system employs a multi-agent consensus mechanism: 
+
+\begin{enumerate}
+  \item \textbf{Agent Roles:} Multiple LLM agents are instantiated with slightly different personas (e.g., a "strict" grader, a "lenient" grader, a "by-the-book" grader).
+  \item \textbf{Concurrent Grading:} These agents grade the same submission in parallel using \codeword{concurrent.futures}.
+  \item \textbf{Consensus:} The scores and feedback from each agent are collected. The final score is typically the mean or median of the agents' scores, and the variance is used as a confidence metric.
+  \item \textbf{Final Review:} A final "meta-agent" reviews the collected feedback and synthesizes it into a single, high-quality explanation.
+\end{enumerate}
+
+\subsubsection{\textbf{4.3. Code Grader (\codeword{code\_grader.py})}}
+
+The code grader provides a secure and comprehensive way to evaluate programming assignments: 
+
+\begin{enumerate}
+  \item \textbf{Sandboxed Execution:} Student code is executed within a secure, isolated Docker container to prevent any potential security risks.
+  \item \textbf{Unit Testing:} The code is run against a set of predefined \codeword{unittest} cases. The results (pass/fail) form the basis of the objective score.
+  \item \textbf{Qualitative Feedback:} An LLM analyzes the student's code, along with the unit test results, to provide qualitative feedback on code style, efficiency, best practices, and potential areas for improvement.
+\end{enumerate}
+
+\subsubsection{\textbf{4.4. RAG Integration (\codeword{rag\_integration.py})}}
+
+To ensure consistency over time, the grading engine uses Retrieval Augmented Generation (RAG): 
+
+\begin{enumerate}
+  \item \textbf{Vector Store:} When a human-in-the-loop correction is made, the grading context (question, student answer, corrected feedback) is embedded and stored in a FAISS vector store.
+  \item \textbf{Contextual Retrieval:} When grading a new submission, the engine queries the vector store to find the most similar previously graded examples.
+  \item \textbf{Prompt Injection:} These historical examples are injected into the LLM prompt, providing valuable context that helps the model "remember" how similar cases were graded in the past.
+\end{enumerate}
+
+\subsubsection{\textbf{4.5. Explainability Module (\codeword{explainer.py})}}
+
+This module is responsible for generating the detailed, rubric-aligned justifications for the final score. It takes the grading results and structures them into a clear, easy-to-understand format that explains which criteria were met and why. 
+
+\medskip\hrule\medskip
+
+\subsection{5. Model Management \& Finetuning (\codeword{training/})}
+
+The application is designed to allow for continuous improvement of the AI models through a user-friendly fine-tuning process. 
+
+\subsubsection{\textbf{5.1. Finetuning Workflow}}
+
+The new \codeword{pages/3\_fine\_tuning.py} page orchestrates this process: 
+
+\begin{enumerate}
+  \item \textbf{Data Generation:} A user clicks a button to generate a \codeword{training\_dataset.jsonl} file. The backend queries the \codeword{grading\_results} table for all human-corrected examples and formats them into the required JSONL structure.
+  \item \textbf{Colab Training:} The user uploads this dataset to Google Colab and runs a provided Python script (\codeword{training/colab\_finetune.py}). This script handles the installation of dependencies, data preparation, and the MLX-based fine-tuning process.
+  \item \textbf{Adapter Deployment:} The training script produces a \codeword{trained\_adapters.npz} file. The user downloads this file and places it in the \codeword{training/} directory of the application.
+  \item \textbf{Automatic Loading:} On startup, the application checks for the existence of \codeword{trained\_adapters.npz}. If found, it automatically loads the fine-tuned LoRA adapters, enhancing the base model with the user's specific corrections.
+\end{enumerate}
+% --- End inline copy of architecture_appendix.tex ---
+
+\chapter{Detailed Data Flow Pipelines}
+\label{chap:detailed_data_flow}
+\label{app:data_flow}
+
+% --- Begin inline copy of data_flow_appendix.tex ---
+\section{Detailed Data Flow Diagrams}
+
+This document provides a series of detailed diagrams illustrating the data flow through every major pipeline in the Automated Grading Framework. 
+
+\medskip\hrule\medskip
+
+\subsection{1. Data Ingestion Pipeline (ETL)}
+
+This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs into structured, queryable data in the PostgreSQL database. 
+
+\begin{verbatim}
+sequenceDiagram
+    participant Prof as Professor
+    participant Stu as Student
+    participant UI as Streamlit UI (st.file_uploader)
+    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Backend as Backend Logic (1_upload_data.py)
+    participant DB as PostgresHandler
+    participant PG as PostgreSQL
+
+    rect rgb(224,255,255)
+        Prof->>UI: Upload professor PDF (questions, rubric)
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>Parser: Parse into structured data
+        Parser-->>Backend: Return JSON structure
+        Backend->>DB: execute_query INSERT into prof_data
+        DB->>PG: SQL insert
+    end
+
+    rect rgb(255,250,205)
+        Stu->>UI: Upload submission PDF
+        UI->>Backend: Pass file bytes
+        Backend->>Parser: Extract text
+        Parser-->>Backend: Return raw text
+        Backend->>DB: execute_query INSERT into student_data
+        DB->>PG: SQL insert
+    end
+\end{verbatim}
+
+\textbf{Description:} 
+
+The ingestion process happens in two distinct (but similar) workflows: 
+
+\begin{itemize}
+  \item \textbf{Professor Workflow:}
+\begin{enumerate}
+  \item The professor uploads a PDF containing the assignment details.
+  \item The backend uses \codeword{PyMuPDF} to extract text and regular expressions (\codeword{re}) to parse it into a structured format (questions, rubric, etc.).
+  \item The structured data is saved to the \codeword{prof\_data} table in the PostgreSQL database.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Student Workflow:}
+\begin{enumerate}
+  \item The student uploads their submission as a PDF.
+  \item The backend uses \codeword{PyMuPDF} to extract the raw text of their answer.
+  \item This text is saved to the \codeword{student\_data} table, linked to the appropriate assignment.
+\end{enumerate}
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{2. Core Grading Pipeline}
+
+This diagram shows the end-to-end process when a professor initiates a grading job, culminating in the results being displayed on the screen. 
+
+\begin{verbatim}
+graph TD
+    A[Start: User clicks Grade] --> B(Backend Logic 2_grading_result.py)
+    B --> C[Fetch submissions from student_data]
+    B --> D[Fetch rubric from prof_data]
+    C --> E[AI Grading Engine]
+    D --> E
+    E --> F[Agentic Pipeline]
+    F --> G(Grading Result score, feedback, confidence)
+    G --> H[Insert into grading_results]
+    H --> I[Streamlit UI updates]
+    I --> J[Professor reviews grades]
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{enumerate}
+  \item The process begins when the user starts a grading job from the Streamlit UI.
+  \item The backend fetches the relevant student submissions and the corresponding professor-defined rubric from the PostgreSQL database.
+  \item This data is dispatched as a job to the \textbf{AI Grading Engine}.
+  \item The engine performs the complex grading task (detailed in the next section).
+  \item The final, aggregated result is returned to the backend.
+  \item The backend saves this result to the \codeword{grading\_results} table for persistence.
+  \item The UI is updated to display the new grades in an editable table, completing the flow.
+\end{enumerate}
+
+\medskip\hrule\medskip
+
+\subsection{3. Agentic Grading Engine Pipeline (Deep Dive)}
+
+This diagram provides a detailed look inside the AI Grading Engine itself, showing how a single submission is processed by the multi-agent system. 
+
+\begin{verbatim}
+graph TD
+    A[Grading Job Received] --> B[Router]
+    B --> |text| C[Multi-Agent Grader]
+    B --> |code| D[Code Grader]
+
+    subgraph Code Grading Sandbox
+        D --> D1[Create Dockerfile + unittests]
+        D1 --> D2[docker build & docker run]
+        D2 --> D3[Capture unittest stdout]
+        D3 --> D4[Parse score]
+        D4 --> D5[LLM feedback]
+        D5 --> D6[Final code grade]
+    end
+
+    subgraph Multi-Agent Text Grading
+        C --> C1[RAG retrieval]
+        C1 --> C2[Similar past corrections]
+        C2 --> C3[Context bundle]
+
+        C --> C4[Concurrent agents]
+        C3 --> C4
+        C4 --> Agent1[Agent α]
+        C4 --> Agent2[Agent β]
+        C4 --> AgentN[Agent γ]
+
+        subgraph Single Agent Execution
+            Agent1 --> P1[Prompt Builder]
+            P1 --> L1[LLM call]
+            L1 --> R1[Score + feedback]
+        end
+
+        R1 --> C5[Aggregator]
+        Agent2 --> C5
+        AgentN --> C5
+
+        C5 --> C6[Mean/median + confidence]
+        C5 --> C7[Meta-agent synthesis]
+        C6 --> C8[Final text grade]
+        C7 --> C8
+    end
+
+    D6 --> Z[Return Result]
+    C8 --> Z
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{itemize}
+  \item \textbf{Routing:} The engine first routes the job based on the assignment type.
+  \item \textbf{Code Grading:} For code, it enters a secure Docker sandbox to run unit tests for an objective score, then uses an LLM to generate qualitative feedback on the code itself.
+  \item \textbf{Text Grading:} For text, the process is more complex:
+\begin{enumerate}
+  \item \textbf{RAG:} The RAG module first retrieves relevant historical grading examples from the FAISS vector store.
+  \item \textbf{Concurrent Grading:} Multiple AI agents, each with a different persona, are spawned in parallel. They each receive the submission, the rubric, and the context from the RAG module.
+  \item \textbf{Aggregation:} Once all agents complete, their individual scores are statistically aggregated (e.g., taking the median). The variance in their scores is used as a confidence metric.
+  \item \textbf{Synthesis:} A final "meta-agent" reviews the feedback from all other agents and synthesizes it into a single, high-quality, comprehensive piece of feedback for the student.
+\end{enumerate}
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{4. Human-in-the-Loop (HITL) \& RAG Update Pipeline}
+
+This pipeline shows what happens when a professor makes a correction to an AI-generated grade. This is a critical feedback loop for the system. 
+
+\begin{verbatim}
+sequenceDiagram
+    participant User as Professor
+    participant UI as Streamlit UI (`st.data_editor`)
+    participant Backend as Backend Logic
+    participant DB as PostgresHandler
+    participant PG as PostgreSQL Database
+    participant RAG as RAG Update Module
+    participant Embed as Embedding Model
+    participant FAISS as FAISS Vector Store
+
+    User->>UI: Edits a score or feedback field in the table
+    UI->>Backend: On change, submits the full row of data
+    Backend->>DB: Calls `UPDATE grading_results` to set `new_score` and `new_feedback`
+    DB->>PG: Executes SQL UPDATE
+    PG-->>DB: Confirms update
+    DB-->>Backend: Success
+
+    Backend->>RAG: Triggers RAG update with the corrected data
+    RAG->>Embed: Creates a document from the question and corrected feedback
+    Embed->>RAG: Generates a vector embedding for the document
+    RAG->>FAISS: Adds the new vector to the FAISS index
+    FAISS-->>RAG: Confirms save
+    RAG-->>Backend: Success
+    Backend-->>UI: Displays "Correction Saved" toast
+\end{verbatim}
+
+\textbf{Description:} 
+\begin{enumerate}
+  \item The professor edits a grade directly in the Streamlit UI.
+  \item The backend receives the corrected data.
+  \item It first updates the \codeword{grading\_results} table in the PostgreSQL database, preserving both the original AI grade (\codeword{old\_feedback}) and the new human-verified grade (\codeword{new\_feedback}).
+  \item Next, this correction is used to improve the RAG system. The corrected feedback is converted into a vector embedding.
+  \item This new vector is added to the FAISS vector store, making this human-verified example available for all future grading tasks to improve their context and accuracy.
+\end{enumerate}
+
+\medskip\hrule\medskip
+% --- End inline copy of data_flow_appendix.tex ---
+
+\chapter{Software Design Specification}
+\label{chap:software_design_spec}
+
+% --- Begin inline copy of design_appendix.tex ---
+\section{Software Design Document}
+
+This document provides a detailed technical design for the Automated Grading Framework. It is divided into two main sections: a High-Level Design (HLD) that describes the overall system architecture and a Low-Level Design (LLD) that provides detailed specifications for each component. 
+
+\medskip\hrule\medskip
+
+\subsection{1. High-Level Design (HLD)}
+
+The High-Level Design outlines the major components of the system, their interactions, and the technology stack. 
+
+\subsubsection{1.1. System Architecture Overview}
+
+The application is a monolithic web application built on a multi-tiered architecture. It is designed for modularity to allow for future expansion and potential migration to a microservices-based architecture. 
+
+\begin{verbatim}
+graph TD
+    subgraph User Layer
+        A[User's Browser] -->|HTTPS| B{Streamlit Web UI}
+    end
+
+    subgraph Application Layer
+        B -->|Function Calls| C{Backend Logic}
+        C -->|SQL Queries| D[PostgreSQL Database]
+        C -->|Grading Jobs| E{AI Grading Engine}
+    end
+
+    subgraph AI & Data Layer
+        E -->|API Calls / Local Inference| F{LLMs}
+        E -->|Embeddings & Retrieval| G[FAISS Vector Store]
+        E -->|Secure Execution| H{Docker Sandbox}
+    end
+
+    style B fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style D fill:#cde4f8,stroke:#333,stroke-width:2px
+    style G fill:#cde4f8,stroke:#333,stroke-width:2px
+\end{verbatim}
+
+\textbf{Component Responsibilities:} 
+
+\begin{enumerate}
+  \item \textbf{Streamlit Web UI (Frontend):} A multi-page application that serves as the primary user interface. It handles user input, authentication, data visualization, and presents the grading results. It is stateful within a user session.
+  \item \textbf{Backend Logic (Integrated with Frontend):} In the current architecture, the backend logic is tightly coupled with the Streamlit frontend. It processes user requests, orchestrates database interactions via the \codeword{PostgresHandler}, and initiates grading jobs.
+  \item \textbf{PostgreSQL Database:} The central repository for all persistent data. It stores user accounts, course materials, student submissions, and all grading results, including human-in-the-loop corrections.
+  \item \textbf{AI Grading Engine:} The core of the system. It contains the logic for different grading modalities (text, code, etc.) and orchestrates the complex interactions between LLMs, RAG, and other AI components.
+  \item \textbf{LLMs (Large Language Models):} The underlying intelligence. The system is designed to be model-agnostic, capable of interfacing with various local models (e.g., via MLX) or external APIs (like OpenAI or Google's Gemini).
+  \item \textbf{FAISS Vector Store:} An on-disk vector database used to implement Retrieval Augmented Generation (RAG). It stores embeddings of past human-corrected gradings to improve future consistency.
+  \item \textbf{Docker Sandbox:} A secure, containerized environment for executing untrusted student code against predefined unit tests, preventing any potential harm to the host system.
+\end{enumerate}
+
+\subsubsection{1.2. Technology Stack}
+
+| Component             | Technology/Framework  | Justification                                                                                             | 
+| --------------------- | --------------------- | --------------------------------------------------------------------------------------------------------- | 
+| \textbf{Frontend/Backend}  | Streamlit             | Enables rapid development of data-centric web applications with Python. Ideal for prototyping and internal tools. | 
+| \textbf{Database}          | PostgreSQL            | A robust, open-source relational database that handles structured data and complex queries effectively.     | 
+| \textbf{AI Orchestration}  | LangChain             | Simplifies the development of LLM-powered applications, particularly for multi-agent and RAG workflows.  | 
+| \textbf{Local AI/ML}       | MLX (for Apple Silicon) | A highly efficient framework for running machine learning models on Apple Silicon, used for local fine-tuning. | 
+| \textbf{PDF Processing}    | PyMuPDF (\codeword{fitz})      | Chosen for its high speed and accuracy in extracting text and metadata from PDF files.                     | 
+| \textbf{Vector Store}      | FAISS (from Facebook AI) | An efficient library for similarity search and clustering of dense vectors, forming the core of the RAG module. | 
+| \textbf{Code Sandboxing}   | Docker                | The industry standard for creating isolated, reproducible environments, ensuring secure code execution.       | 
+
+\subsubsection{1.3. User Roles and Permissions}
+
+Two primary user roles are defined within the system: 
+
+\begin{itemize}
+  \item \textbf{Professor:} Has full access to the system. Can upload course materials, view all student submissions, initiate grading, review and modify AI-generated grades, view analytics, and manage the fine-tuning process.
+  \item \textbf{Student (Future Scope):} While the current system focuses on the professor's workflow, a student role would have restricted access, limited to uploading their own submissions and viewing their final, published grades.
+\end{itemize}
+
+\subsubsection{1.4. Data Flow Diagram}
+
+This diagram illustrates the end-to-end flow for a typical text-based assignment grading task. 
+
+\begin{verbatim}
+sequenceDiagram
+    participant User as Professor
+    participant UI as Streamlit UI
+    participant Backend as Backend Logic
+    participant DB as PostgreSQL DB
+    participant Engine as AI Grading Engine
+
+    User->>UI: Uploads Assignment PDF (Questions, Rubric)
+    UI->>Backend: Parses PDF, extracts data
+    Backend->>DB: INSERT into `prof_data` table
+    DB-->>Backend: Confirms save
+
+    User->>UI: Uploads Student Submissions (PDFs)
+    UI->>Backend: Parses PDFs
+    Backend->>DB: INSERT into `student_data` table
+    DB-->>Backend: Confirms save
+
+    User->>UI: Clicks "Start Grading"
+    UI->>Backend: Initiates grading job
+    Backend->>Engine: Dispatches job with submissions and rubric
+    
+    Engine->>Engine: Spawns multiple AI agents
+    loop For Each Agent
+        Engine->>Engine: Retrieves similar past examples (RAG) from Vector Store
+        Engine->>Engine: Constructs detailed prompt
+        Engine->>Engine: Grades submission using LLM
+    end
+    Engine->>Engine: Aggregates results to form consensus grade
+    
+    Engine-->>Backend: Returns final grade, feedback, and explanation
+    Backend->>DB: INSERT into `grading_results`
+
+    Backend-->>UI: Displays grading results
+    User->>UI: Reviews and (optionally) corrects a grade
+    UI->>Backend: Submits correction
+    Backend->>DB: UPDATE `grading_results` (sets `new_score`, `new_feedback`)
+    Backend->>Engine: Stores correction in Vector Store for future RAG
+\end{verbatim}
+
+\subsubsection{1.5. Future-State Cloud Architecture (Google Cloud)}
+
+For a production-grade system, migrating from a local, monolithic architecture to a scalable cloud-based one is recommended. Google Cloud offers a suite of services that align perfectly with this application's needs. 
+
+\begin{verbatim}
+graph TD
+    subgraph User & CDN
+        A[User Browser] --> B[Cloud CDN & Load Balancer]
+    end
+
+    subgraph Application Services
+        B --> C[Cloud Run Frontend]
+        B --> D[Cloud Functions Backend API]
+    end
+
+    subgraph Data & Storage
+        C --> E[Cloud SQL for PostgreSQL]
+        D --> E
+        D --> F[Cloud Storage Assets]
+    end
+
+    subgraph AI Platform
+        D --> G[Vertex AI Pipelines]
+        G --> H[Vertex AI Model Garden]
+        G --> I[Vertex AI Vector Search]
+        G --> J[Cloud Run Jobs for Code Execution]
+    end
+
+    C --> F
+\end{verbatim}
+
+\textbf{Migration Benefits:} 
+
+\begin{itemize}
+  \item \textbf{Scalability \\& Reliability:} Cloud Run and Cloud Functions automatically scale with traffic, including scaling to zero, which is highly cost-effective. Cloud SQL provides managed, high-availability PostgreSQL.
+  \item \textbf{Decoupled Frontend/Backend:} Separating the Streamlit frontend (served via Cloud Run) from the backend logic (refactored into API endpoints in Cloud Functions) creates a more robust and scalable microservices architecture.
+  \item \textbf{Centralized MLOps with Vertex AI:}
+  \item \textbf{Vertex AI Pipelines:} The entire grading and fine-tuning workflow can be defined as a reproducible pipeline, making it easier to manage, version, and trigger.
+  \item \textbf{Vertex AI Vector Search:} A fully managed, highly scalable, and low-latency vector database to replace the local FAISS store.
+  \item \textbf{Model Management:} Use the Vertex AI Model Garden for pre-trained models or host custom-trained models, streamlining model deployment and versioning.
+  \item \textbf{Secure, Serverless Execution:} Replace the local Docker sandbox with ephemeral Cloud Run Jobs for even more secure and scalable code execution.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{2. Low-Level Design (LLD)}
+
+The Low-Level Design provides detailed specifications for individual modules, data structures, and logic. 
+
+\subsubsection{2.1. Database Schema (PostgreSQL)}
+
+Below is a detailed breakdown of the core tables. All text fields are \codeword{TEXT} to accommodate variable lengths. Timestamps are used for auditing. 
+
+\textbf{Table: \codeword{users}} 
+
+| Column          | Data Type             | Constraints                                   | Description                                   | 
+| --------------- | --------------------- | --------------------------------------------- | --------------------------------------------- | 
+| \codeword{id}            | \codeword{SERIAL}              | \codeword{PRIMARY KEY}                                 | Unique identifier for the user.               | 
+| \codeword{username}      | \codeword{VARCHAR(255)}        | \codeword{UNIQUE}, \codeword{NOT NULL}                          | User's chosen login name.                     | 
+| \codeword{password\_hash} | \codeword{VARCHAR(255)}        | \codeword{NOT NULL}                                    | Hashed password for secure storage.           | 
+| \codeword{role}          | \codeword{VARCHAR(50)}         | \codeword{DEFAULT 'professor'}                         | User's role (e.g., 'professor').              | 
+| \codeword{created\_at}    | \codeword{TIMESTAMP WITH TIME ZONE} | \codeword{DEFAULT CURRENT\_TIMESTAMP}                   | Timestamp of account creation.                | 
+
+\textbf{Table: \codeword{prof\_data}} 
+
+| Column          | Data Type             | Constraints                                   | Description                                   | 
+| --------------- | --------------------- | --------------------------------------------- | --------------------------------------------- | 
+| \codeword{id}            | \codeword{SERIAL}              | \codeword{PRIMARY KEY}                                 | Unique identifier for the dataset entry.      | 
+| \codeword{course}        | \codeword{VARCHAR(255)}        | \codeword{NOT NULL}                                    | The course name (e.g., 'CS101').              | 
+| \codeword{assignment\_no} | \codeword{VARCHAR(255)}        | \codeword{NOT NULL}                                    | The assignment number (e.g., 'HW1').          | 
+| \codeword{question}      | \codeword{TEXT}                | \codeword{NOT NULL}                                    | The text of the assignment question.          | 
+| \codeword{ideal\_answer}  | \codeword{TEXT}                |                                               | The professor-provided ideal answer.          | 
+| \codeword{rubric}        | \codeword{JSONB}               | \codeword{NOT NULL}                                    | The grading rubric stored in JSON format.     | 
+| \codeword{uploaded\_by}   | \codeword{INTEGER}             | \codeword{REFERENCES users(id)}                        | Foreign key linking to the \codeword{users} table.     | 
+| \codeword{uploaded\_at}   | \codeword{TIMESTAMP WITH TIME ZONE} | \codeword{DEFAULT CURRENT\_TIMESTAMP}                   | Timestamp of the upload.                      | 
+
+\textbf{Table: \codeword{grading\_results}} 
+
+| Column          | Data Type             | Constraints                                   | Description                                   | 
+| --------------- | --------------------- | --------------------------------------------- | --------------------------------------------- | 
+| \codeword{id}            | \codeword{SERIAL}              | \codeword{PRIMARY KEY}                                 | Unique identifier for the grading result.     | 
+| \codeword{course}        | \codeword{VARCHAR(255)}        | \codeword{NOT NULL}                                    | The course name.                              | 
+| \codeword{assignment\_no} | \codeword{VARCHAR(255)}        | \codeword{NOT NULL}                                    | The assignment number.                        | 
+| \codeword{question}      | \codeword{TEXT}                | \codeword{NOT NULL}                                    | The question being graded.                    | 
+| \codeword{student\_answer}| \codeword{TEXT}                | \codeword{NOT NULL}                                    | The full text of the student's answer.        | 
+| \codeword{old\_score}     | \codeword{INTEGER}             |                                               | The original score given by the AI.           | 
+| \codeword{old\_feedback}  | \codeword{TEXT}                |                                               | The original feedback generated by the AI.    | 
+| \codeword{new\_score}     | \codeword{INTEGER}             |                                               | The human-corrected score (if any).           | 
+| \codeword{new\_feedback}  | \codeword{TEXT}                |                                               | The human-corrected feedback (if any).        | 
+| \codeword{graded\_at}     | \codeword{TIMESTAMP WITH TIME ZONE} | \codeword{DEFAULT CURRENT\_TIMESTAMP}                   | Timestamp when the grading was performed.     | 
+| \codeword{corrected\_by}  | \codeword{INTEGER}             | \codeword{REFERENCES users(id)}                        | Foreign key to the user who made the correction. | 
+
+\subsubsection{2.2. AI Grading Engine (\codeword{grader\_engine/}) - Module Breakdown}
+
+\paragraph{\textbf{\codeword{multi\_agent.py}}}
+
+\begin{itemize}
+  \item \textbf{Class: \codeword{MultiAgentGrader}}
+  \item \codeword{\_\_init\_\_(self, agents: List[Callable], aggregator: Callable)}: Initializes with a list of agent functions and an aggregator function.
+  \item \codeword{grade\_submission(self, submission: str, rubric: dict, context: str) -> dict}:
+\begin{enumerate}
+  \item Uses \codeword{concurrent.futures.ThreadPoolExecutor} to run each agent function in parallel.
+  \item Each agent function receives the submission, rubric, and RAG context.
+  \item Collects the results (score, feedback) from all agents.
+  \item Passes the list of results to the \codeword{aggregator} function.
+  \item Returns the aggregated result.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Function: \codeword{create\_grading\_agent(persona: str, llm: BaseLLM) -> Callable}}
+  \item A factory function that takes a persona (e.g., "You are a strict but fair grader...") and an LLM instance.
+  \item It constructs a LangChain prompt template that includes placeholders for the persona, submission, rubric, and RAG context.
+  \item Returns a callable function (a LangChain chain) that executes the grading task for that specific agent.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Function: \codeword{aggregate\_results(results: List[dict]) -> dict}}
+  \item Calculates the mean, median, and standard deviation of the scores.
+  \item Uses a separate LLM call to a "meta-agent" to synthesize the feedback from all agents into a single, high-quality, and comprehensive explanation.
+  \item Returns a dictionary containing the final score, synthesized feedback, and a confidence metric based on score variance.
+\end{itemize}
+
+\paragraph{\textbf{\codeword{code\_grader.py}}}
+
+\begin{itemize}
+  \item \textbf{Class: \codeword{CodeGrader}}
+  \item \codeword{grade\_submission(self, student\_code: str, test\_cases: str) -> dict}:
+\begin{enumerate}
+  \item \textbf{Prepare Docker Environment:} Creates a temporary directory containing the \codeword{student\_code}, the \codeword{test\_cases} (as a \codeword{unittest} file), and a \codeword{Dockerfile}.
+  \item \textbf{Build Docker Image:} Runs \codeword{docker build} to create a self-contained image.
+  \item \textbf{Run Docker Container:} Executes \codeword{docker run} on the image. The container runs the \codeword{unittest} suite and captures the \codeword{stdout} and \codeword{stderr} to a results file.
+  \item \textbf{Parse Test Results:} Reads the output from the container to determine which tests passed and failed, calculating an objective score.
+  \item \textbf{Generate Qualitative Feedback:} Makes an LLM call with a specialized prompt containing the student code, the test cases, and the pass/fail results. The prompt asks the LLM to provide feedback on style, efficiency, and correctness, explaining why the tests failed.
+  \item \textbf{Cleanup:} Removes the Docker container, image, and temporary directory.
+  \item Returns a dictionary with the objective score, a list of passed/failed tests, and the LLM-generated qualitative feedback.
+\end{enumerate}
+\end{itemize}
+
+\subsubsection{2.3. Finetuning Workflow (\codeword{pages/3\_fine\_tuning.py})}
+
+This page acts as a user-friendly orchestrator for a complex MLOps task. 
+
+\begin{itemize}
+  \item \textbf{Function: \codeword{generate\_training\_data()}}
+\begin{enumerate}
+  \item Instantiates a \codeword{PostgresHandler}.
+  \item Executes a specific SQL query (as detailed in the file) to fetch all rows from \codeword{grading\_results} where \codeword{new\_feedback} is not null and differs from \codeword{old\_feedback}.
+  \item Iterates through the results, formatting each one into a JSON object with a single key, \codeword{"text"}.
+  \item The value for \codeword{"text"} is a long string formatted according to the \codeword{PROMPT\_TEMPLATE}, injecting the question, student answer, ideal answer/rubric, and critically, the human-written \codeword{corrected\_feedback} as the model's target response.
+  \item Concatenates these JSON objects, separated by newlines, to create a valid JSONL file string.
+  \item Stores this string in \codeword{st.session\_state} to make it available for download.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{UI Logic:}
+  \item A button, \codeword{"Generate Training Data"}, triggers the \codeword{generate\_training\_data} function.
+  \item Upon successful generation (if \codeword{st.session\_state['generated\_training\_data']} exists), a \codeword{st.download\_button} is rendered, allowing the user to save the \codeword{.jsonl} file.
+  \item A \codeword{st.code} block displays the full, static content of the \codeword{colab\_finetune.py} script, providing a clear, read-only view with a copy button for user convenience.
+\end{itemize}
+% --- End inline copy of design_appendix.tex ---
+
+\chapter{Evaluation Playbook}
+\label{chap:evaluation_playbook}
+
+% --- Begin inline copy of evaluation_appendix.tex ---
+\section{Comprehensive Evaluation Strategy}
+
+This document outlines the detailed, module-by-module evaluation plan for the Automated Grading Framework. For each component, it analyzes the available evaluation options and provides a clear justification for the chosen, open-source method. 
+
+\medskip\hrule\medskip
+
+\subsubsection{1. Data Ingestion \& ETL Module (\codeword{1\_upload\_data.py})}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The accuracy of the \codeword{PyMuPDF} and regular expression-based parser in correctly extracting and structuring the \textbf{questions, rubric, and student answers} from various PDF files.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Manual Spot-Checking:}
+\begin{itemize}
+  \item \emph{Advantages:} Simple to perform, requires no setup, fast for a very small number of documents.
+  \item \emph{Disadvantages:} Not scalable, highly subjective, not statistically valid, and likely to miss subtle but critical edge-case errors (e.g., incorrect parsing of a specific rubric format).
+\begin{enumerate}
+  \item \textbf{Error Rate Monitoring:}
+\begin{itemize}
+  \item \emph{Advantages:} Easy to implement by wrapping the parsing logic in a try-except block; effectively catches 100\% of catastrophic failures where the program would otherwise crash.
+  \item \emph{Disadvantages:} Provides a false sense of security. It cannot detect logical errors, such as misattributing an answer to the wrong question or failing to extract the last item in a rubric. The parser can "succeed" but still produce garbage data.
+\begin{enumerate}
+  \item \textbf{Golden Dataset Testing:}
+\begin{itemize}
+  \item \emph{Advantages:} Provides objective, quantifiable, and reproducible metrics (e.g., F1-score, Precision). An automated script compares the parser's output against a "perfect" ground truth, catching both catastrophic and subtle logical errors. It enables regression testing to ensure future changes don't break existing functionality.
+  \item \emph{Disadvantages:} Requires a significant upfront investment of time to create a diverse and representative "golden dataset" of PDFs and their corresponding ideal JSON outputs.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Golden Dataset Testing}
+  \item \textbf{Open-Source Confirmation:} This is a methodology, and its implementation will exclusively use open-source tools, primarily \textbf{\codeword{pytest}} for the testing framework and Python's standard libraries for file handling and comparison.
+  \item \textbf{Justification:} The quality of the data entering the system is non-negotiable. While it requires upfront effort, the Golden Dataset method is the only one that provides true, quantifiable confidence in the parser's accuracy. It moves from "it seems to work" to "it is 99.2\% accurate on these 15 document types." This rigor is essential for a reliable application and justifies the initial time investment.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{Core Grader Evaluations}
+
+\subsubsection{2.1. Evaluation of the Multi-Agent Text Grader}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:}
+\begin{enumerate}
+  \item \textbf{Numeric Score Accuracy:} Comparison of the AI's score to a human expert's score.
+  \item \textbf{Feedback Quality:} The relevance, helpfulness, and factual correctness of the generated text.
+  \item \textbf{Consensus Reliability (RQ1):} The statistical consistency among the different AI agents.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options for Feedback Quality:}
+\begin{enumerate}
+  \item \textbf{Lexical Similarity Metrics (e.g., BLEU, ROUGE):}
+\begin{itemize}
+  \item \emph{Advantages:} Simple to calculate, fast, and completely objective.
+  \item \emph{Disadvantages:} Fundamentally unsuited for this task. They only measure n-gram overlap with a reference answer, not semantic meaning, factual accuracy, or logical reasoning. They cannot determine if feedback is helpful or even correct.
+\begin{enumerate}
+  \item \textbf{LLM-as-a-Judge (Proprietary):}
+\begin{itemize}
+  \item \emph{Advantages:} Highly scalable and capable of evaluating complex, abstract qualities of the text.
+  \item \emph{Disadvantages:} Often relies on closed-source, proprietary models (e.g., GPT-4), which violates our open-source constraint. It can be expensive, and the "judge" model may have its own biases.
+\begin{enumerate}
+  \item \textbf{DeepEval (Open-Source Framework):}
+\begin{itemize}
+  \item \emph{Advantages:} It is \textbf{open-source}, specifically designed for evaluating LLM outputs, and provides metrics for the exact problems we face, such as \codeword{Faithfulness} (fact-checking against a context) and \codeword{AnswerRelevancy}. It integrates cleanly with \codeword{pytest} for automated testing.
+  \item \emph{Disadvantages:} Requires some configuration and a clear understanding of what each metric is measuring to be used effectively.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: A Hybrid of DeepEval and Open-Source Statistical Libraries}
+  \item \textbf{Open-Source Confirmation:} This approach exclusively uses open-source libraries: \textbf{\codeword{DeepEval}} for feedback quality, \textbf{\codeword{SciPy}} and \textbf{\codeword{NumPy}} for numeric score analysis (MAE, Pearson's r), and \textbf{\codeword{simpledorff}} for Krippendorff's Alpha.
+  \item \textbf{Justification:} No single tool can evaluate this complex system. A hybrid approach is necessary.
+  \item \textbf{For Feedback Quality, \codeword{DeepEval} is chosen} because it is the only open-source option that can look beyond word-matching to assess the \emph{semantic quality} of the generated text, which is paramount.
+  \item \textbf{For Numeric Accuracy, standard statistical methods are chosen} because they are the universally accepted standard for comparing a model's score to a human baseline.
+  \item \textbf{For Consensus Reliability, Krippendorff's Alpha is chosen} because it is the most robust academic standard for measuring inter-rater reliability, accounting for chance agreement in a way that simpler metrics (like variance) do not.
+\end{itemize}
+
+\subsubsection{2.2. Evaluation of the Code Grader}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:}
+\begin{enumerate}
+  \item \textbf{Execution Accuracy:} The accuracy of the unit test execution within the Docker sandbox.
+  \item \textbf{Feedback Quality:} The pedagogical value of the LLM-generated feedback on code style and correctness.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options for Feedback Quality:}
+\begin{enumerate}
+  \item \textbf{LLM-as-a-Judge:}
+\begin{itemize}
+  \item \emph{Advantages:} Scalable.
+  \item \emph{Disadvantages:} Not open-source, and a generic LLM lacks the specific pedagogical context to know what constitutes "good" feedback for a student learning to code.
+\begin{enumerate}
+  \item \textbf{Qualitative Human Review by Experts:}
+\begin{itemize}
+  \item \emph{Advantages:} The undisputed "gold standard" for assessing pedagogical value. Human instructors can spot nuances, assess tone, and determine if the feedback would actually help a student learn—qualities that an AI judge cannot.
+  \item \emph{Disadvantages:} It is subjective, time-consuming, and does not scale.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Execution Accuracy \\& Qualitative Human Review}
+  \item \textbf{Open-Source Confirmation:} The objective part uses open-source tools (\codeword{Docker}, \codeword{pytest}). The subjective part is a methodology, not a tool, and is by nature open and transparent.
+  \item \textbf{Justification:} This module's dual nature requires a dual evaluation.
+  \item \textbf{For the Objective Score:} A simple \textbf{Execution Accuracy Percentage} is perfect. It's a binary, clear, and unimpeachable metric derived from comparing the sandbox's \codeword{unittest} results to the ground truth.
+  \item \textbf{For the Subjective Feedback:} \textbf{Qualitative Human Review is chosen} over an LLM-as-a-Judge because scalability is less important than authenticity. To gain user trust, the feedback must be genuinely helpful, and only human experts can be the judge of that. For this specific task, human insight is more valuable than automated metrics.
+\end{itemize}
+
+\subsubsection{2.3. Evaluation of the Math Grader}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:}
+\begin{enumerate}
+  \item \textbf{Symbolic Correctness:} The accuracy of the symbolic math engine (e.g., SymPy) in correctly evaluating the student's mathematical expressions.
+  \item \textbf{Feedback Quality:} The clarity and pedagogical value of the LLM-generated feedback explaining \emph{why} a mathematical answer is correct or incorrect.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Manual Calculation:} Manually solve the problems and compare the results. This is slow and prone to human error.
+  \item \textbf{Automated Symbolic Comparison:} Use a symbolic math library to programmatically compare the student's final expression against a known "golden" solution. This is fast, deterministic, and highly accurate.
+  \item \textbf{LLM-as-a-Judge for Feedback:} Use a powerful LLM to evaluate the quality of the generated feedback.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Automated Symbolic Comparison \\& DeepEval}
+  \item \textbf{Open-Source Confirmation:} We will use \textbf{\codeword{SymPy}} for the symbolic comparison and \textbf{\codeword{DeepEval}} for feedback analysis, both of which are open-source.
+  \item \textbf{Justification:} This hybrid approach addresses both facets of the math grader.
+  \item \textbf{For Symbolic Correctness:} \textbf{\codeword{SymPy} is chosen} because it allows for a definitive, automated, and mathematically sound way to check for the equivalence of symbolic expressions. This provides an objective, unimpeachable score for correctness.
+  \item \textbf{For Feedback Quality:} \textbf{\codeword{DeepEval} is chosen} to ensure the textual explanation is factually grounded in the mathematical error and is relevant to the student's mistake, preventing generic or unhelpful feedback.
+\end{itemize}
+
+\subsubsection{2.4. Evaluation of the Multimodal Grader}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:}
+\begin{enumerate}
+  \item \textbf{Visual Interpretation Accuracy:} The model's ability to correctly interpret the content of images, charts, and diagrams.
+  \item \textbf{Integrated Reasoning:} The model's capacity to combine information from both text and images to accurately assess the student's answer against the rubric.
+  \item \textbf{Feedback Quality:} The quality of the feedback, ensuring it references both textual and visual elements where appropriate.
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Ad-hoc Manual Review:} Simply looking at the output and subjectively deciding if it's correct. This is not rigorous or reproducible.
+  \item \textbf{Proprietary Multimodal Evaluation Models:} Use closed-source, powerful multimodal models as judges. This violates the open-source constraint and can be expensive.
+  \item \textbf{Human Evaluation with a Structured Rubric:} Have human experts evaluate the multimodal output against a specific, structured rubric that asks questions like, "Did the model correctly identify the key elements in the diagram?" and "Does the feedback correctly reference the visual information?"
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Human Evaluation with a Structured Rubric}
+  \item \textbf{Open-Source Confirmation:} This is a methodology, not a specific tool, and is by nature open and transparent.
+  \item \textbf{Justification:} The automated evaluation of multimodal reasoning is a complex, cutting-edge research problem. For the practical purposes of this application, \textbf{a structured human review is the only truly reliable method}. It is the "gold standard" for assessing nuanced understanding that combines different data types. While not scalable, it provides the most accurate and actionable feedback on the performance of the multimodal grader.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{Supporting AI System Evaluations}
+
+\subsubsection{3.1. Evaluation of the RAG Integration Module}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The relevance and completeness of the documents retrieved from the FAISS vector store.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{End-to-End Evaluation:}
+\begin{itemize}
+  \item \emph{Advantages:} Requires no extra tools or setup.
+  \item \emph{Disadvantages:} It's an indirect and unreliable signal. A good final grade could have occurred \emph{despite} bad retrieval, and vice-versa. It doesn't provide actionable insight into the RAG pipeline itself.
+\begin{enumerate}
+  \item \textbf{Ragas (Open-Source Framework):}
+\begin{itemize}
+  \item \emph{Advantages:} It is \textbf{open-source} and the purpose-built tool for this exact problem. It isolates the retrieval step and provides clear, actionable metrics like \codeword{context\_precision} and \codeword{context\_recall}.
+  \item \emph{Disadvantages:} Requires the creation of a curated evaluation dataset containing queries and their expected retrieved documents.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Ragas Framework}
+  \item \textbf{Open-Source Confirmation:} \textbf{\codeword{Ragas}} is a well-known, Apache 2.0 licensed open-source project.
+  \item \textbf{Justification:} Using a specialized tool is vastly superior to indirect measurement. \textbf{Ragas is chosen} because it allows us to diagnose the health of our RAG pipeline directly. Knowing our \codeword{context\_precision} is low, for example, tells us we need to improve our chunking or embedding strategy. This level of targeted insight is impossible with an end-to-end approach.
+\end{itemize}
+
+\subsubsection{3.2. Evaluation of the Explainability Module (\codeword{explainer.py})}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The clarity, accuracy, and pedagogical value of the generated explanation, ensuring it correctly justifies the score by explicitly referencing the rubric and the student's answer.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Human Review (Likert Scale):}
+\begin{itemize}
+  \item \emph{Advantages:} Provides a direct measure of user satisfaction and perceived clarity.
+  \item \emph{Disadvantages:} Subjective, slow, and doesn't scale well.
+\begin{enumerate}
+  \item \textbf{DeepEval Framework:}
+\begin{itemize}
+  \item \emph{Advantages:} \textbf{Open-source} and allows for the creation of precise, automated, and objective metrics. We can move beyond a simple rating to get a specific score for specific qualities.
+  \item \emph{Disadvantages:} Requires some initial setup for custom metrics.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: DeepEval Framework with Custom Metrics}
+  \item \textbf{Open-Source Confirmation:} \textbf{\codeword{DeepEval}} is an open-source framework.
+  \item \textbf{Justification:} \textbf{DeepEval is chosen} because it allows us to create a highly specific and automated metric that perfectly matches our goal. We will create a custom \textbf{"Rubric Coverage"} metric. This metric programmatically parses the rubric and checks if the generated explanation explicitly addresses every single criterion. This provides a direct, objective score for the explanation's completeness, which is far more valuable and reliable than a subjective human rating.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{System-Wide Process Evaluation}
+
+\subsubsection{4.1. Evaluation of the Fine-Tuning Pipeline}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The delta in performance between the base model and the fine-tuned model on a consistent, held-out test set. We need to measure if fine-tuning actually improves grading accuracy and feedback quality.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Training Loss Monitoring:}
+\begin{itemize}
+  \item \emph{Advantages:} Very easy, as this data is output by the training script by default.
+  \item \emph{Disadvantages:} Can be highly misleading. A decreasing loss only proves the model is learning the \emph{training data}. It does not prove the model can \emph{generalize} to new, unseen data, which is the entire point of fine-tuning.
+\begin{enumerate}
+  \item \textbf{Comparative A/B Testing on a Hold-out Set:}
+\begin{itemize}
+  \item \emph{Advantages:} The scientific standard for measuring impact. It provides clear, quantitative proof of improvement (or lack thereof) by comparing the model's performance before and after fine-tuning on the same unseen data.
+  \item \emph{Disadvantages:} Requires the discipline to maintain a strict separation between training data and the held-out test set.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Comparative A/B Testing on a Hold-out Set}
+  \item \textbf{Open-Source Confirmation:} This is a methodology that leverages the other open-source tools in our evaluation suite (\codeword{DeepEval}, \codeword{Ragas}, \codeword{pytest}).
+  \item \textbf{Justification:} This is the only option that can definitively prove the value of the fine-tuning pipeline. \textbf{It is chosen} because it directly answers the business question: "Does this feature make our product better?" By running the entire evaluation suite on the base model and then again on the fine-tuned model, we can generate a clear, evidence-based report (e.g., "Fine-tuning improved feedback faithfulness by 15\% and reduced scoring error by 10\%"), justifying the feature's existence.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{5. Backend Infrastructure Evaluation}
+
+\subsubsection{5.1. Evaluation of Database Technology Choice (PostgreSQL)}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The suitability of the chosen database technology (PostgreSQL) against other options, based on the application's specific requirements for data integrity, query complexity, scalability, and ecosystem support.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{NoSQL Databases (e.g., MongoDB, Firestore):}
+\begin{itemize}
+  \item \emph{Advantages:} Flexible schema is good for rapidly changing or unstructured data. Generally easier to scale horizontally.
+  \item \emph{Disadvantages:} Weaker transactional guarantees (compared to ACID). Performing complex queries with joins (e.g., getting all student submissions for a specific assignment with rubric details) is difficult and inefficient. The application's data is highly structured and relational, making this a poor fit.
+\begin{enumerate}
+  \item \textbf{SQLite:}
+\begin{itemize}
+  \item \emph{Advantages:} Extremely simple, serverless, zero-configuration, and stores the entire database in a single file. Excellent for development, testing, or very simple, single-user applications.
+  \item \emph{Disadvantages:} Not designed for concurrency. It struggles with multiple users (e.g., several instructors) writing to the database at the same time, which is a key requirement for this web application. It lacks the advanced features and robustness of a full database server.
+\begin{enumerate}
+  \item \textbf{Relational Databases (e.g., PostgreSQL, MySQL):}
+\begin{itemize}
+  \item \emph{Advantages:} Strong ACID compliance guarantees data integrity and transactional safety, which is critical for academic records. The standardized SQL language is perfect for the complex, relational queries this application needs. Mature, stable, and well-supported technology.
+  \item \emph{Disadvantages:} Requires a more rigid schema upfront. Can be more complex to set up and manage than SQLite.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: PostgreSQL (A Relational Database)}
+  \item \textbf{Open-Source Confirmation:} PostgreSQL is a powerful, well-regarded, and fully open-source object-relational database system with a liberal license.
+  \item \textbf{Justification:} \textbf{PostgreSQL was chosen because the application's data is fundamentally relational and requires high integrity.}
+\begin{enumerate}
+  \item \textbf{Data Integrity is Non-Negotiable:} The system manages grades, student submissions, and feedback. The strong ACID guarantees of PostgreSQL ensure that this critical data is never left in an inconsistent state. A NoSQL database would risk data corruption.
+  \item \textbf{Naturally Relational Data:} The data model consists of clear relationships: a \codeword{student} has many \codeword{submissions}, an \codeword{assignment} has many \codeword{grades}. A relational database is the most efficient and logical way to model and query these relationships.
+  \item \textbf{Requirement for Complex Queries:} The application needs to perform complex joins, aggregations, and reports (e.g., "Find all feedback for this student across all assignments," "Calculate the average score for question 3 on this exam"). SQL is the most powerful and appropriate tool for these tasks.
+  \item \textbf{Concurrency and Scalability:} Unlike SQLite, PostgreSQL is designed from the ground up to handle concurrent connections from multiple users, which is essential for a web application used by multiple instructors. It provides a robust foundation that can scale to a large number of users and a large volume of data.
+\end{enumerate}
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{6. LLM Comparative Evaluation}
+
+\subsubsection{6.1. Evaluation of Different Language Models}
+
+\begin{itemize}
+  \item \textbf{What We Need to Evaluate:} The relative performance of different LLMs (e.g., a base model like Llama 3, a fine-tuned version, an API-based model like Gemini) for the specific tasks of grading and feedback generation. The goal is to determine which model provides the best balance of accuracy, quality, cost, and latency for our application.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Available Options:}
+\begin{enumerate}
+  \item \textbf{Public Benchmarks (e.g., MMLU, HumanEval):}
+\begin{itemize}
+  \item \emph{Advantages:} Standardized scores are readily available for many models, providing a general sense of their capabilities.
+  \item \emph{Disadvantages:} These benchmarks are generic and do not measure performance on our highly specific task of rubric-based grading. A model's ability to answer trivia questions (MMLU) is not a good proxy for its ability to provide nuanced, pedagogical feedback based on a rubric.
+\begin{enumerate}
+  \item \textbf{Ad-hoc Manual Testing:}
+\begin{itemize}
+  \item \emph{Advantages:} Quick and easy to get a "feel" for a model's output on a few examples.
+  \item \emph{Disadvantages:} Not reproducible, not scalable, and highly prone to subjective bias. It cannot provide the quantitative data needed for a formal comparison or to justify a decision.
+\begin{enumerate}
+  \item \textbf{Systematic A/B/n Testing on a Hold-out Set:}
+\begin{itemize}
+  \item \emph{Advantages:} The gold standard for comparative analysis. It provides direct, head-to-head quantitative comparisons of models on the \emph{exact same data} for the \emph{exact same task}. It reuses our entire existing evaluation suite (DeepEval, statistical tests, etc.) to produce a rich, multi-faceted scorecard for each model.
+  \item \emph{Disadvantages:} Requires more rigorous setup and execution time than other methods.
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Chosen Method: Systematic A/B/n Testing on a Hold-out Set}
+  \item \textbf{Open-Source Confirmation:} This is a methodology that leverages our entire existing suite of open-source evaluation tools (\codeword{DeepEval}, \codeword{Ragas}, \codeword{SciPy}, \codeword{pytest}). No new tools are needed.
+  \item \textbf{Justification:} \textbf{This is the only method that provides actionable, evidence-based results for our specific use case.}
+\begin{enumerate}
+  \item \textbf{Task-Specific Results:} Instead of relying on irrelevant public benchmarks, this method tests the models on the \emph{actual grading tasks} the application performs.
+  \item \textbf{Direct, Quantitative Comparison:} The process involves running the entire evaluation suite (from Section 2.1) on a fixed hold-out set, with the only variable being the LLM being called. This produces a clear scorecard comparing each model on metrics like \textbf{Mean Absolute Error}, \textbf{Feedback Faithfulness}, and \textbf{Rubric Coverage}.
+  \item \textbf{Evidence-Based Decisions:} This approach allows us to make definitive statements like, "Model X reduces scoring errors by 15\% but increases latency by 40\% compared to Model Y." This is the critical information needed to make informed decisions about which model to deploy, balancing performance, cost, and user experience. It turns a subjective choice into a data-driven one.
+\end{enumerate}
+\end{itemize}
+% --- End inline copy of evaluation_appendix.tex ---
+
+\chapter{Educator Handbook}
+\label{chap:educator_handbook}
+
+% --- Begin inline copy of educator_guide_appendix.tex ---
+\section{The Educator's Guide to the Automated Grading Framework}
+
+\medskip\hrule\medskip
+
+\subsection{1. Purpose \& Scope}
+
+\textbf{Goal:} This guide serves as the primary onboarding and reference document for educators using the Automated Grading Framework. Its purpose is to empower you to efficiently and effectively grade student assignments, understand the AI's reasoning, and improve its performance over time. 
+
+\textbf{Scope:} This document covers the complete user workflow, from uploading assignment materials and grading student submissions to leveraging advanced features like model fine-tuning. It is not intended to be a deep technical reference for developers. 
+
+\medskip\hrule\medskip
+
+\subsection{2. Getting Started}
+
+\subsubsection{2.1. Overview}
+
+The Automated Grading Framework is a tool designed to assist you with the grading process. It uses a sophisticated AI Grading Engine to analyze student submissions, provide a score based on your rubric, and generate detailed, constructive feedback. 
+
+Crucially, \textbf{you are always in control}. The framework acts as your expert assistant, and you have the final say on every grade. The system is built on a \textbf{Human-in-the-Loop} philosophy, meaning your corrections are not only saved but are used to make the AI smarter and more aligned with your standards over time. 
+
+\subsubsection{2.2. Prerequisites}
+
+Before you begin, please ensure you have the following: 
+
+\begin{itemize}
+  \item \textbf{Professor-level access credentials} to log into the application.
+  \item \textbf{Assignment materials in PDF format.} This includes:
+  \item A document containing the assignment questions, the ideal answers, and a detailed grading rubric.
+  \item The students' submissions, also in PDF format.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{3. Step-by-Step Walkthrough}
+
+This section will guide you through the three main phases of using the application. 
+
+\subsubsection{Phase 1: Uploading Your Assignment}
+
+First, you need to provide the system with the context for the assignment. 
+
+\begin{enumerate}
+  \item \textbf{Navigate} to the \textbf{"Upload Data"} page from the main menu.
+  \item \textbf{Upload the Professor's Document:} Under the "Upload Professor Data" section, upload the PDF that contains your questions, ideal answers, and rubric.
+  \item \textbf{Upload Student Submissions:} Under the "Upload Student Data" section, upload one or more student answer PDFs.
+  \item \textbf{Verification:} The system will confirm once the files are successfully parsed and stored.
+\end{enumerate}
+
+> \#\#\#\# �� \textbf{Best Practice: PDF Formatting} 
+> For the best results, use PDFs where the text is machine-readable (i.e., not a scanned image). This allows the AI to parse the content with the highest accuracy. If you have a very long assignment document, consider splitting it into smaller files for easier processing. 
+
+\subsubsection{Phase 2: Grading and Review (The Human-in-the-Loop)}
+
+This is where the magic happens. The AI will grade the submissions, and you will review them. 
+
+\begin{enumerate}
+  \item \textbf{Navigate} to the \textbf{"Grading Result"} page.
+  \item \textbf{Initiate Grading:} Select the course and assignment you wish to grade and click the \textbf{"Start Grading"} button.
+  \item \textbf{Review the Results:} After a few moments, the results will appear in an interactive table. For each student, you will see:
+\begin{itemize}
+  \item The question and their answer.
+  \item The AI-generated score (\codeword{old\_score}) and feedback (\codeword{old\_feedback}).
+\begin{enumerate}
+  \item \textbf{Make Corrections:} If you disagree with the AI, simply \textbf{click into the table cell} and edit the score or feedback directly. The table works just like a spreadsheet.
+  \item \textbf{Save Corrections:} When you modify a grade, your correction is saved automatically as \codeword{new\_score} and \codeword{new\_feedback}.
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+
+> \#\#\#\# ✨ \textbf{How Your Corrections Help} 
+> Every correction you make is used in two powerful ways: 
+> 1.  \textbf{For Consistency (RAG):} Your correction is immediately stored in the system's "memory" (a Vector Store). When the AI grades the \emph{next} student, it looks at this memory to see how you graded similar answers, helping it stay consistent. 
+> 2.  \textbf{For Long-Term Improvement:} Your corrections become the training data for making the AI model itself better (see Phase 3). 
+
+\subsubsection{Phase 3 (Advanced): Improving the AI with the Finetuning Assistant}
+
+After you have graded several assignments and made corrections, you can use that data to create a new, smarter version of the AI model that is customized to your specific course and standards. 
+
+\begin{enumerate}
+  \item \textbf{Navigate} to the \textbf{"Model Finetuning Assistant"} page.
+  \item \textbf{Step 1: Generate Data:} Click the \textbf{"Generate Training Data"} button. The system will package all the corrections you've made into a single \codeword{training\_dataset.jsonl} file. A download button will appear.
+  \item \textbf{Step 2: Train in Colab:}
+\begin{itemize}
+  \item Follow the link to open Google Colab and set the runtime to \codeword{T4 GPU} as instructed.
+  \item Copy the provided Python script into a Colab cell.
+  \item Upload your \codeword{training\_dataset.jsonl} file to the Colab environment.
+  \item Run the cell. The training will take 15-20 minutes.
+\begin{enumerate}
+  \item \textbf{Step 3: Deploy Your Model:}
+\begin{itemize}
+  \item Once training is complete, a \codeword{trained\_adapters.npz} file will appear in Colab. Download it.
+  \item Move this file into the \codeword{training/} folder of this application.
+  \item \textbf{Restart the application.}
+\end{itemize}
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+
+That's it! The application will automatically detect and use your new, fine-tuned model for all future grading tasks. 
+
+\medskip\hrule\medskip
+
+\subsection{4. Troubleshooting \& FAQ}
+
+\begin{itemize}
+  \item \textbf{Q: The PDF upload failed or the text looks jumbled. Why?}
+  \item \textbf{A:} This usually happens if the PDF is a scanned image of a document. Please ensure your PDFs are created from a text source (e.g., "Save as PDF" from a word processor). See the Best Practice tip in Phase 1.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Q: The AI's grade seems completely wrong. What should I do?}
+  \item \textbf{A:} Simply correct it in the results table. The system is designed for this! Your correction provides a valuable data point that helps the AI learn.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Q: How can I trust the AI is being fair and consistent?}
+  \item \textbf{A:} The system uses two key features for this: the \textbf{Multi-Agent System}, where multiple AI agents debate to reach a consensus, and \textbf{Retrieval Augmented Generation (RAG)}, which constantly refers to your past corrections to maintain consistency. The final authority, however, is always you.
+\end{itemize}
+
+\begin{itemize}
+  \item \textbf{Q: I deployed a new fine-tuned model but I want to revert to the original. How?}
+  \item \textbf{A:} Simply delete the \codeword{trained\_adapters.npz} file from the \codeword{training/} directory and restart the application. The system will revert to the base model.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{5. Additional Resources}
+
+For users interested in the underlying technical details of the framework, the following documents are available in the project repository: 
+
+\begin{itemize}
+  \item \codeword{ARCHITECTURE.md}: A high-level overview of the system components.
+  \item \codeword{DESIGN.md}: A detailed technical design of the software.
+  \item \codeword{DATA\_FLOW.md}: A set of diagrams illustrating how data moves through the application.
+\end{itemize}
+
+\medskip\hrule\medskip
+
+\subsection{Next Steps for This Document}
+
+As a living document, this guide will evolve with the product. Based on anticipated user feedback, future versions should include: 
+
+\begin{itemize}
+  \item \textbf{A section on interpreting the Analytics Dashboard.}
+  \item \textbf{Specific guidance for grading Code Assignments}, including how to write effective \codeword{unittest} cases.
+  \item \textbf{A more detailed "Tips and Tricks" section} for writing effective rubrics that the AI can easily understand.
+\end{itemize}
+% --- End inline copy of educator_guide_appendix.tex ---
+
 
 \chapter{Implementation Details}
 \label{app:impl_details}

@@ -27,14 +27,14 @@ The platform combines a multi-page Streamlit interface, a PostgreSQL persistence
 
 ## Key Capabilities
 - **Rubric-driven LLM grading** with explainable feedback in English, German, and Spanish.
-- **Multimodal ingestion** for PDFs, scanned responses, and structured uploads from LMS exports (ILIAS-ready).
+- **Multimodal ingestion** for PDFs, scanned responses, and structured uploads from LMS exports (ILIAS-ready ZIPs).
 - **Multi-agent consensus** graders that compare perspectives before confirming a score.
 - **Retrieval-augmented evaluation** via a sentence-transformer or TF-IDF vector store for exemplar lookups.
 - **Human oversight** workflows: edit grades, share results, and audit corrections.
 - **Analytics dashboard** for filtering by course, semester, language, or student.
 
 ## Architecture at a Glance
-1. **Streamlit Frontend (`app.py`, `pages/`)** – Authentication, PDF upload, grading review, collaboration center, dashboards, and profile management.
+1. **Streamlit Frontend (`app.py`, `pages/`)** – Authentication, PDF/ILIAS upload, grading review, collaboration center, dashboards, and profile management.
 2. **Grading Engine (`grader_engine/`)** – Routes requests to specialized graders (text, code, math, multimodal) with fallback-safe RAG and explainability modules.
 3. **Data Layer (`database/`)** – Lightweight connection pooling, schema bootstrap, and helper methods for sharing and correction history.
 4. **Integrations (`ilias_utils/`, `pdf_utils/`)** – Parsing LMS archives, generating feedback ZIPs, and documentation for rollout.
@@ -46,8 +46,8 @@ The platform combines a multi-page Streamlit interface, a PostgreSQL persistence
 ├── app.py
 ├── pages/
 │   ├── 0_auth.py            # Professor login and registration
-│   ├── 1_upload_data.py     # PDF ingestion, rubric parsing, vector store seeding
-│   ├── 2_grading_result.py  # Review, approve, and share grading output
+│   ├── 1_upload_data.py     # PDF/ILIAS ingestion, rubric parsing, vector store seeding
+│   ├── 2_grading_result.py  # Review, approve, download LMS-ready ZIPs, and share grading output
 │   ├── 3_collaboration_center.py
 │   ├── 3_dashboard.py       # Performance analytics
 ├── grader_engine/
@@ -55,7 +55,7 @@ The platform combines a multi-page Streamlit interface, a PostgreSQL persistence
 │   ├── multimodal_grader.py # Calls Ollama REST endpoint for multimodal prompts
 │   ├── multi_agent.py       # Consensus orchestrator
 │   └── ...
-├── ilias_utils/             # LMS bridges, feedback ZIP generator
+├── ilias_utils/             # LMS bridges, feedback ZIP generator (Download Feedback)
 ├── database/
 │   ├── postgres_handler.py  # Connection pool and CRUD helpers
 │   └── db_connection.py     # YAML-driven connection helper

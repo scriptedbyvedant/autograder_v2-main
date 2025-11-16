@@ -7,23 +7,23 @@ This document provides a series of detailed diagrams illustrating the data flow 
 
 ## 1. Data Ingestion Pipeline (ETL)
 
-This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs into structured, queryable data in the PostgreSQL database.
+This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs or ILIAS LMS archives into structured, queryable data in the PostgreSQL database.
 
 ```mermaid
 sequenceDiagram
     participant Prof as Professor
     participant Stu as Student
     participant UI as Streamlit UI (st.file_uploader)
-    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Parser as PDF/ILIAS Parser (PyMuPDF / regex / parse_ilias_zip)
     participant Backend as Backend Logic (1_upload_data.py)
     participant DB as PostgresHandler
     participant PG as PostgreSQL
 
     rect rgb(224,255,255)
-        Prof->>UI: Upload professor PDF (questions, rubric)
+        Prof->>UI: Upload professor PDF (questions, rubric) OR ILIAS ZIP export
         UI->>Backend: Pass file bytes
-        Backend->>Parser: Extract text
-        Parser-->>Backend: Return raw text
+        Backend->>Parser: Extract text / unpack ZIP
+        Parser-->>Backend: Return raw text + manifest
         Backend->>Parser: Parse into structured data
         Parser-->>Backend: Return JSON structure
         Backend->>DB: execute_query INSERT into prof_data
@@ -53,6 +53,11 @@ The ingestion process happens in two distinct (but similar) workflows:
     1. The student uploads their submission as a PDF.
     2. The backend uses `PyMuPDF` to extract the raw text of their answer.
     3. This text is saved to the `student_data` table, linked to the appropriate assignment.
+
+*   **ILIAS Workflow (Professor and Students combined):**
+    1. An instructor uploads a full ILIAS ZIP export containing assignment context and student submissions.
+    2. `parse_ilias_zip` unpacks the archive, normalises filenames, maps each submission to a student ID, and surfaces a manifest/coverage preview in the UI.
+    3. Parsed questions/criteria flow into `prof_data`, and per-student files are stored in `student_data`, ready for grading with no manual renaming.
 
 ---
 
@@ -186,3 +191,28 @@ sequenceDiagram
 
 ---
 
+
+
+
+## 5. Feedback Export Pipeline (ILIAS-Compatible ZIP)
+
+This flow shows how reviewed grades are packaged for LMS re-upload.
+
+```mermaid
+sequenceDiagram
+    participant UI as Streamlit UI (Download Feedback)
+    participant Backend as Backend Logic
+    participant Export as FeedbackZipGenerator
+    participant FS as Temporary Storage
+
+    UI->>Backend: User clicks "Download Feedback"
+    Backend->>Export: Fetch latest new_score/new_feedback for assignment
+    Export->>FS: Render per-student PDFs + manifest
+    Export->>UI: Return ZIP matching ILIAS folder/filename conventions
+```
+
+**Description:**
+1. From the grading page, the instructor clicks **Download Feedback**.
+2. The backend gathers the latest `new_score`/`new_feedback` rows for each student.
+3. `FeedbackZipGenerator` renders per-student PDFs and builds a ZIP using the ILIAS naming and folder structure.
+4. The UI streams the ZIP so the instructor can upload it back to ILIAS without manual file renaming.

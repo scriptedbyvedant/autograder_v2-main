@@ -24,9 +24,9 @@ Crucially, **you are always in control**. The framework acts as your expert assi
 Before you begin, please ensure you have the following:
 
 *   **Professor-level access credentials** to log into the application.
-*   **Assignment materials in PDF format.** This includes:
-    *   A document containing the assignment questions, the ideal answers, and a detailed grading rubric.
-    *   The students' submissions, also in PDF format.
+*   **Assignment materials in PDF format** or an **ILIAS export ZIP.** This includes:
+    *   A document containing the assignment questions, the ideal answers, and a detailed grading rubric (PDF) or the ILIAS export that bundles these fields.
+    *   The students' submissions, either as individual PDFs or inside the ILIAS ZIP.
 
 ---
 
@@ -39,8 +39,8 @@ This section will guide you through the three main phases of using the applicati
 First, you need to provide the system with the context for the assignment.
 
 1.  **Navigate** to the **"Upload Data"** page from the main menu.
-2.  **Upload the Professor's Document:** Under the "Upload Professor Data" section, upload the PDF that contains your questions, ideal answers, and rubric.
-3.  **Upload Student Submissions:** Under the "Upload Student Data" section, upload one or more student answer PDFs.
+2.  **Upload the Context:** Either upload the PDF that contains your questions, ideal answers, and criteria, **or** upload an **ILIAS ZIP**. ZIP uploads run through `parse_ilias_zip`, which unpacks the archive, maps submissions to students, and shows a manifest preview so you can confirm coverage.
+3.  **Upload Student Submissions:** If you are not using an ILIAS ZIP, upload one or more student answer PDFs.
 4.  **Verification:** The system will confirm once the files are successfully parsed and stored.
 
 > #### 📌 **Best Practice: PDF Formatting**
@@ -57,6 +57,7 @@ This is where the magic happens. The AI will grade the submissions, and you will
     *   The AI-generated score (`old_score`) and feedback (`old_feedback`).
 4.  **Make Corrections:** If you disagree with the AI, simply **click into the table cell** and edit the score or feedback directly. The table works just like a spreadsheet.
 5.  **Save Corrections:** When you modify a grade, your correction is saved automatically as `new_score` and `new_feedback`. 
+6.  **Download Feedback (ILIAS-ready):** Click **Download Feedback** to trigger `FeedbackZipGenerator`, which packages per-student PDFs into a ZIP that matches ILIAS naming/folder conventions so you can re-upload directly to the LMS.
 
 > #### ✨ **How Your Corrections Help**
 > Every correction you make is used in two powerful ways:
