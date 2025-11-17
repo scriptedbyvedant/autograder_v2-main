@@ -73,11 +73,11 @@ graph TD
     C --> E[AI Grading Engine]
     D --> E
     E --> F[Agentic Pipeline]
-    F --> G(Grading Result score, feedback, confidence)
+    F --> G[Grading Result: score, feedback, confidence]
     G --> H[Insert into grading_results]
     H --> I[Streamlit UI updates]
     I --> J[Professor reviews grades]
-    J --> K[Download Feedback (ILIAS-ready ZIP)]
+    J --> K[Download Feedback ZIP for LMS]
 ```
 
 **Description:**
