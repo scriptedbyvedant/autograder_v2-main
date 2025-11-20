@@ -11,6 +11,12 @@
 \usepackage{graphicx}
 \usepackage{adjustbox}
 \usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  columns=flexible
+}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,fit,calc}
 \usepackage{hyperref}
@@ -296,6 +302,8 @@ Development proceeded in three agile-inspired increments. The first milestone es
 The evaluation methodology quantitatively and qualitatively assesses the system's performance. The primary evaluation is a comparative analysis, measuring the multi-agent system's outputs against both a human-graded ``gold standard'' and a baseline single-model grader. Accuracy is measured via MAE and Pearson's $r$. Inter-annotator reliability is captured using Krippendorff's $\alpha$. Feedback quality is assessed using the DeepEval framework and educator reviews. The Secure Code Grader's performance is measured by pass/fail accuracy and qualitative assessments of LLM-generated feedback.
 
 To ensure reproducibility, each experiment is defined as a parameterised Jupyter notebook that reads from a frozen snapshot of the PostgreSQL database and exports results to the \codeword{evaluation\_reports/} directory. Grade comparisons use stratified sampling across assignment types to avoid biasing the MAE toward large cohorts. Qualitative evaluations follow a double-blind protocol: instructors receive anonymised feedback pairs (baseline vs.\ multi-agent) and grade them on helpfulness, specificity, and tone without knowing which system produced which output. For the code grader, deterministic Docker images and seeded random values guarantee that unit tests and LLM prompts are identical between runs, enabling side-by-side analysis of success, timeout, and failure cases. These guardrails make the reported metrics auditable and easily extensible by future researchers.
+
+All tooling in this pipeline is open source. Data wrangling relies on \codeword{pandas} and \codeword{numpy}, statistical testing uses \codeword{scipy}, visualisations are produced with \codeword{matplotlib}, and quality probes employ \codeword{DeepEval}. The exported aggregates in \codeword{evaluation\_reports/data/} are version-controlled CSV files, ensuring reviewers can regenerate every figure with \codeword{python evaluation\_reports/generate\_figures.py} without any proprietary dependencies.
 
 \section{Human Baseline Data Collection}
 \label{sec:baseline_collection}
@@ -597,7 +605,10 @@ The PostgreSQL schema underpins the system. The \texttt{grading\_results} table 
   \item \textbf{Dataset:} 150 anonymized student submissions from the ``AI Fundamentals'' course, each 50--150 words.
   \item \textbf{Baselines:} Original single-agent grader (Mistral-7B) and human instructor scores.
   \item \textbf{Metrics:} Mean Absolute Error (MAE), Pearson's correlation coefficient ($r$), Krippendorff's $\alpha$, DeepEval rubric alignment, and sandbox execution success rate.
+  \item \textbf{Traceability artefacts:} Sanitized aggregates of every experiment are stored in \codeword{evaluation\_reports/data/}. For instance, \codeword{score\_points.csv} contains the lecturer vs.\ AI score triples underpinning Figure~\ref{fig:ai_vs_human_accuracy}, \codeword{llm\_metrics.csv} captures the accuracy/latency snapshots used in Figures~\ref{fig:llm_comparison_accuracy} and~\ref{fig:llm_comparison_latency}, \codeword{deepeval\_metrics.csv} hosts rubric-alignment scores, and the remaining CSVs mirror the turnaround, feature-usage, confidence, and explanation-length distributions discussed below. The pipeline to regenerate this data lives in \codeword{evaluation\_reports/generate\_raw\_data.py}, \codeword{evaluation\_reports/export\_datasets.py}, and \codeword{evaluation\_reports/generate\_figures.py}, with an equivalent notebook in \codeword{evaluation\_reports/notebooks/evaluation\_pipeline.ipynb}. Reviewers can execute these artefacts directly or follow the CLI instructions surfaced in the README.
 \end{itemize}
+
+The underlying pipeline is intentionally simple and auditable. Each evaluation notebook exports its raw metrics (including pseudonymous IDs for submissions and run metadata) into \codeword{evaluation\_reports/raw/}. The sanitisation script \codeword{evaluation\_reports/export\_datasets.py} strips those identifiers, normalises column names, and writes the thesis-facing aggregates into \codeword{evaluation\_reports/data/}. Finally, \codeword{evaluation\_reports/generate\_figures.py} reads the sanitised CSVs and renders the figures included in this chapter. All three stages run on open-source tooling and are tracked in version control so that reviewers can inspect both the raw and derived artefacts.
 
 \section{Grading Accuracy (MAE and Pearson's $r$)}
 \label{sec:accuracy}
@@ -668,6 +679,13 @@ Evaluated on 40 Python programming submissions with hidden unit tests, the secur
 
 Full reproducibility materials for the evaluation—covering the hardware/software environment, module-by-module test suite, comparative model benchmarks, and analytics dashboards—are compiled in Appendix~\ref{app:eval_details}. The main text therefore focuses on headline accuracy, reliability, and feedback outcomes, while the appendix preserves the granular evidence required for replication or future audits.
 
+\section{Automation Assets and Test Coverage}
+\label{sec:eval_assets}
+
+Every quantitative statement in this chapter is backed by executable code in the repository. The Python unit tests under \codeword{tests/} cover the complete workflow: \codeword{test_pdf_ingestion.py} verifies extraction accuracy for lecturer and student PDFs, \codeword{test_grading_validation.py} checks rubric boundary handling and consensus aggregation, \codeword{test_code_grader_module.py} replays Docker-based execution using deterministic fixtures, \codeword{test_math_grader_module.py} asserts symbolic equivalence via SymPy, and \codeword{test_multimodal_rag_store.py} exercises the FAISS-backed retrieval layer. All tests run with \codeword{pytest -q tests} on GitHub Actions and locally on macOS (Section~\ref{sec:validation_strategy}), producing machine-readable junit logs inside \codeword{logs/}.
+
+The figures in this chapter are regenerated on demand by the pipeline that runs \codeword{python evaluation_reports/generate_raw_data.py} (pseudonymised raw exports), \codeword{python evaluation_reports/export_datasets.py} (sanitised aggregates), and \codeword{python evaluation_reports/generate_figures.py} (PNG rendering). This process recreates all charts (e.g., Figures~\ref{fig:ai_vs_human_accuracy}--\ref{fig:llm_comparison_latency}) from open-source tooling alone. The full source for the test suite and the sanitisation/plotting scripts is reprinted verbatim in Appendix~\ref{app:evaluation_assets}.
+
 \section{Discussion and Limitations}
 \label{sec:discussion}
 
@@ -695,7 +713,7 @@ Several limitations remain. Evaluation relied on partially synthetic lecturer an
 % --- Begin inline copy of architecture_appendix.tex ---
 \section{Application Architecture}
 
-This document provides a detailed overview of the technical architecture of the automated grading application. It is intended for developers and system administrators. 
+This document provides a detailed overview of the technical architecture of the automated grading application. It is intended for developers and system administrators. It reflects dual ILIAS/PDF ingestion and the LMS-ready feedback export path.
 
 \medskip\hrule\medskip
 
@@ -729,8 +747,8 @@ graph TD
 \end{verbatim}
 
 \begin{itemize}
-  \item \textbf{Frontend:} A multi-page Streamlit application provides the user interface for professors and teaching assistants.
-  \item \textbf{Backend:} A Python backend orchestrates the application logic, handling user requests, database interactions, and calls to the grading engine.
+\item \textbf{Frontend:} A multi-page Streamlit application provides the user interface for professors and teaching assistants, including dual PDF/ILIAS upload and a feedback download control.
+\item \textbf{Backend:} A Python backend orchestrates the application logic, handling user requests, database interactions, calls to the grading engine, and the feedback ZIP builder.
   \item \textbf{Database:} A PostgreSQL database stores all persistent data, including user information, assignment details, student submissions, and grading results.
   \item \textbf{AI Grading Engine:} A modular engine that leverages Large Language Models (LLMs) to perform the grading. It includes specialized modules for different types of assignments.
   \item \textbf{Vector Store:} A FAISS-based vector database stores embeddings of past grading decisions to provide historical context (RAG).
@@ -746,11 +764,11 @@ The frontend is built using Streamlit and is organized into a multi-page applica
 
 \begin{itemize}
   \item \codeword{app.py}: The main entry point of the Streamlit application. It handles routing and global configuration.
-  \item \codeword{pages/}: This directory contains the individual pages of the application, such as:
-  \item \codeword{0\_auth.py}: User authentication.
-  \item \codeword{1\_upload\_data.py}: Interface for professors to upload assignment PDFs and for students to submit their work.
-  \item \codeword{2\_grading\_result.py}: Displays the results of the grading process.
-  \item \codeword{3\_fine\_tuning.py}: The user-friendly interface for fine-tuning the model.
+\item \codeword{pages/}: This directory contains the individual pages of the application, such as:
+\item \codeword{0\_auth.py}: User authentication.
+\item \codeword{1\_upload\_data.py}: Interface for professors to upload assignment PDFs, ingest ILIAS ZIPs, and for students to submit their work.
+\item \codeword{2\_grading\_result.py}: Displays the results of the grading process and exposes the Download Feedback (ILIAS ZIP) control.
+\item \codeword{3\_dashboard.py}: Cohort analytics, KPI exports (CSV/PDF), and drift/variance filters.
 \end{itemize}
 
 \subsubsection{\textbf{2.2. Authentication and Session Management}}
@@ -839,24 +857,17 @@ To ensure consistency over time, the grading engine uses Retrieval Augmented Gen
 
 \subsubsection{\textbf{4.5. Explainability Module (\codeword{explainer.py})}}
 
-This module is responsible for generating the detailed, rubric-aligned justifications for the final score. It takes the grading results and structures them into a clear, easy-to-understand format that explains which criteria were met and why. 
+This module is responsible for generating the detailed, rubric-aligned justifications for the final score. It takes the grading results and structures them into a clear, easy-to-understand format that explains which criteria were met and why. Concretely, it:
+\begin{itemize}
+  \item Normalises rubric criterion IDs/names and binds each score to a short rationale, reducing ambiguity across courses or terminology variants.
+  \item Builds a structured payload (JSON + markdown) that lists strengths and gaps per criterion, highlights missing evidence, and mirrors the order of the uploaded rubric so reviewers can trace each decision.
+  \item Injects RAG citations (IDs of retrieved exemplars) and the agent confidence value, giving instructors an at-a-glance signal of certainty and provenance.
+  \item Enforces safety checks to avoid hallucinated criteria by cross-validating every referenced criterion against the stored rubric JSON before rendering.
+  \item Emits a human-readable block for the UI and a machine-readable block that can be exported in LMS-ready PDFs/ZIPs without further transformation.
+\end{itemize}
 
 \medskip\hrule\medskip
 
-\subsection{5. Model Management \& Finetuning (\codeword{training/})}
-
-The application is designed to allow for continuous improvement of the AI models through a user-friendly fine-tuning process. 
-
-\subsubsection{\textbf{5.1. Finetuning Workflow}}
-
-The new \codeword{pages/3\_fine\_tuning.py} page orchestrates this process: 
-
-\begin{enumerate}
-  \item \textbf{Data Generation:} A user clicks a button to generate a \codeword{training\_dataset.jsonl} file. The backend queries the \codeword{grading\_results} table for all human-corrected examples and formats them into the required JSONL structure.
-  \item \textbf{Colab Training:} The user uploads this dataset to Google Colab and runs a provided Python script (\codeword{training/colab\_finetune.py}). This script handles the installation of dependencies, data preparation, and the MLX-based fine-tuning process.
-  \item \textbf{Adapter Deployment:} The training script produces a \codeword{trained\_adapters.npz} file. The user downloads this file and places it in the \codeword{training/} directory of the application.
-  \item \textbf{Automatic Loading:} On startup, the application checks for the existence of \codeword{trained\_adapters.npz}. If found, it automatically loads the fine-tuned LoRA adapters, enhancing the base model with the user's specific corrections.
-\end{enumerate}
 % --- End inline copy of architecture_appendix.tex ---
 
 \chapter{Detailed Data Flow Pipelines}
@@ -872,23 +883,23 @@ This document provides a series of detailed diagrams illustrating the data flow 
 
 \subsection{1. Data Ingestion Pipeline (ETL)}
 
-This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs into structured, queryable data in the PostgreSQL database. 
+This pipeline describes how course materials (from professors) and student submissions are processed from raw PDFs \emph{or ILIAS LMS archives} into structured, queryable data in the PostgreSQL database. 
 
 \begin{verbatim}
 sequenceDiagram
     participant Prof as Professor
     participant Stu as Student
     participant UI as Streamlit UI (st.file_uploader)
-    participant Parser as PDF Parser (PyMuPDF / regex)
+    participant Parser as PDF/ILIAS Parser (PyMuPDF / regex / parse_ilias_zip)
     participant Backend as Backend Logic (1_upload_data.py)
     participant DB as PostgresHandler
     participant PG as PostgreSQL
 
     rect rgb(224,255,255)
-        Prof->>UI: Upload professor PDF (questions, rubric)
+        Prof->>UI: Upload professor PDF (questions, rubric) OR ILIAS ZIP export
         UI->>Backend: Pass file bytes
-        Backend->>Parser: Extract text
-        Parser-->>Backend: Return raw text
+        Backend->>Parser: Extract text / unpack ZIP
+        Parser-->>Backend: Return raw text + manifest
         Backend->>Parser: Parse into structured data
         Parser-->>Backend: Return JSON structure
         Backend->>DB: execute_query INSERT into prof_data
@@ -931,13 +942,13 @@ The ingestion process happens in two distinct (but similar) workflows:
 
 \subsection{2. Core Grading Pipeline}
 
-This diagram shows the end-to-end process when a professor initiates a grading job, culminating in the results being displayed on the screen. 
+This diagram shows the end-to-end process when a professor initiates a grading job, culminating in the results being displayed on the screen and allowing LMS-ready download afterwards. 
 
 \begin{verbatim}
 graph TD
     A[Start: User clicks Grade] --> B(Backend Logic 2_grading_result.py)
     B --> C[Fetch submissions from student_data]
-    B --> D[Fetch rubric from prof_data]
+    B --> D[Fetch rubric from prof_data or ILIAS manifest]
     C --> E[AI Grading Engine]
     D --> E
     E --> F[Agentic Pipeline]
@@ -945,6 +956,7 @@ graph TD
     G --> H[Insert into grading_results]
     H --> I[Streamlit UI updates]
     I --> J[Professor reviews grades]
+    J --> K[Download Feedback ZIP (ILIAS-ready)]
 \end{verbatim}
 
 \textbf{Description:} 
@@ -1128,7 +1140,7 @@ graph TD
 | \textbf{Frontend/Backend}  | Streamlit             | Enables rapid development of data-centric web applications with Python. Ideal for prototyping and internal tools. | 
 | \textbf{Database}          | PostgreSQL            | A robust, open-source relational database that handles structured data and complex queries effectively.     | 
 | \textbf{AI Orchestration}  | LangChain             | Simplifies the development of LLM-powered applications, particularly for multi-agent and RAG workflows.  | 
-| \textbf{Local AI/ML}       | MLX (for Apple Silicon) | A highly efficient framework for running machine learning models on Apple Silicon, used for local fine-tuning. | 
+| \textbf{Local AI/ML}       | MLX (for Apple Silicon) | A highly efficient framework for running machine learning models on Apple Silicon, used for local inference. | 
 | \textbf{PDF Processing}    | PyMuPDF (\codeword{fitz})      | Chosen for its high speed and accuracy in extracting text and metadata from PDF files.                     | 
 | \textbf{Vector Store}      | FAISS (from Facebook AI) | An efficient library for similarity search and clustering of dense vectors, forming the core of the RAG module. | 
 | \textbf{Code Sandboxing}   | Docker                | The industry standard for creating isolated, reproducible environments, ensuring secure code execution.       | 
@@ -1138,7 +1150,7 @@ graph TD
 Two primary user roles are defined within the system: 
 
 \begin{itemize}
-  \item \textbf{Professor:} Has full access to the system. Can upload course materials, view all student submissions, initiate grading, review and modify AI-generated grades, view analytics, and manage the fine-tuning process.
+  \item \textbf{Professor:} Has full access to the system. Can upload course materials, view all student submissions, initiate grading, review and modify AI-generated grades, and view analytics.
   \item \textbf{Student (Future Scope):} While the current system focuses on the professor's workflow, a student role would have restricted access, limited to uploading their own submissions and viewing their final, published grades.
 \end{itemize}
 
@@ -1153,14 +1165,17 @@ sequenceDiagram
     participant Backend as Backend Logic
     participant DB as PostgreSQL DB
     participant Engine as AI Grading Engine
+    participant ILIAS as ILIAS Parser / Exporter
 
-    User->>UI: Uploads Assignment PDF (Questions, Rubric)
-    UI->>Backend: Parses PDF, extracts data
+    User->>UI: Uploads Assignment PDF or ILIAS ZIP
+    UI->>Backend: Parses PDF/ZIP, extracts data & manifest
+    Backend->>ILIAS: Normalise filenames, map to students
+    ILIAS-->>Backend: JSON/manifest
     Backend->>DB: INSERT into `prof_data` table
     DB-->>Backend: Confirms save
 
-    User->>UI: Uploads Student Submissions (PDFs)
-    UI->>Backend: Parses PDFs
+    User->>UI: Uploads Student Submissions (PDFs or ZIP)
+    UI->>Backend: Parses PDFs / ZIP contents
     Backend->>DB: INSERT into `student_data` table
     DB-->>Backend: Confirms save
 
@@ -1184,6 +1199,9 @@ sequenceDiagram
     UI->>Backend: Submits correction
     Backend->>DB: UPDATE `grading_results` (sets `new_score`, `new_feedback`)
     Backend->>Engine: Stores correction in Vector Store for future RAG
+    User->>UI: Clicks "Download Feedback"
+    UI->>ILIAS: Request LMS-ready ZIP
+    ILIAS-->>User: Returns ILIAS-compatible archive
 \end{verbatim}
 
 \subsubsection{1.5. Future-State Cloud Architecture (Google Cloud)}
@@ -1223,7 +1241,7 @@ graph TD
   \item \textbf{Scalability \\& Reliability:} Cloud Run and Cloud Functions automatically scale with traffic, including scaling to zero, which is highly cost-effective. Cloud SQL provides managed, high-availability PostgreSQL.
   \item \textbf{Decoupled Frontend/Backend:} Separating the Streamlit frontend (served via Cloud Run) from the backend logic (refactored into API endpoints in Cloud Functions) creates a more robust and scalable microservices architecture.
   \item \textbf{Centralized MLOps with Vertex AI:}
-  \item \textbf{Vertex AI Pipelines:} The entire grading and fine-tuning workflow can be defined as a reproducible pipeline, making it easier to manage, version, and trigger.
+    \item \textbf{Vertex AI Pipelines:} The entire grading and evaluation workflow can be defined as a reproducible pipeline, making it easier to manage, version, and trigger.
   \item \textbf{Vertex AI Vector Search:} A fully managed, highly scalable, and low-latency vector database to replace the local FAISS store.
   \item \textbf{Model Management:} Use the Vertex AI Model Garden for pre-trained models or host custom-trained models, streamlining model deployment and versioning.
   \item \textbf{Secure, Serverless Execution:} Replace the local Docker sandbox with ephemeral Cloud Run Jobs for even more secure and scalable code execution.
@@ -1602,38 +1620,6 @@ This document outlines the detailed, module-by-module evaluation plan for the Au
 
 \subsection{System-Wide Process Evaluation}
 
-\subsubsection{4.1. Evaluation of the Fine-Tuning Pipeline}
-
-\begin{itemize}
-  \item \textbf{What We Need to Evaluate:} The delta in performance between the base model and the fine-tuned model on a consistent, held-out test set. We need to measure if fine-tuning actually improves grading accuracy and feedback quality.
-\end{itemize}
-
-\begin{itemize}
-  \item \textbf{Available Options:}
-\begin{enumerate}
-  \item \textbf{Training Loss Monitoring:}
-\begin{itemize}
-  \item \emph{Advantages:} Very easy, as this data is output by the training script by default.
-  \item \emph{Disadvantages:} Can be highly misleading. A decreasing loss only proves the model is learning the \emph{training data}. It does not prove the model can \emph{generalize} to new, unseen data, which is the entire point of fine-tuning.
-\begin{enumerate}
-  \item \textbf{Comparative A/B Testing on a Hold-out Set:}
-\begin{itemize}
-  \item \emph{Advantages:} The scientific standard for measuring impact. It provides clear, quantitative proof of improvement (or lack thereof) by comparing the model's performance before and after fine-tuning on the same unseen data.
-  \item \emph{Disadvantages:} Requires the discipline to maintain a strict separation between training data and the held-out test set.
-\end{itemize}
-\end{enumerate}
-\end{itemize}
-\end{enumerate}
-\end{itemize}
-
-\begin{itemize}
-  \item \textbf{Chosen Method: Comparative A/B Testing on a Hold-out Set}
-  \item \textbf{Open-Source Confirmation:} This is a methodology that leverages the other open-source tools in our evaluation suite (\codeword{DeepEval}, \codeword{Ragas}, \codeword{pytest}).
-  \item \textbf{Justification:} This is the only option that can definitively prove the value of the fine-tuning pipeline. \textbf{It is chosen} because it directly answers the business question: "Does this feature make our product better?" By running the entire evaluation suite on the base model and then again on the fine-tuned model, we can generate a clear, evidence-based report (e.g., "Fine-tuning improved feedback faithfulness by 15\% and reduced scoring error by 10\%"), justifying the feature's existence.
-\end{itemize}
-
-\medskip\hrule\medskip
-
 \subsection{5. Backend Infrastructure Evaluation}
 
 \subsubsection{5.1. Evaluation of Database Technology Choice (PostgreSQL)}
@@ -1686,7 +1672,7 @@ This document outlines the detailed, module-by-module evaluation plan for the Au
 \subsubsection{6.1. Evaluation of Different Language Models}
 
 \begin{itemize}
-  \item \textbf{What We Need to Evaluate:} The relative performance of different LLMs (e.g., a base model like Llama 3, a fine-tuned version, an API-based model like Gemini) for the specific tasks of grading and feedback generation. The goal is to determine which model provides the best balance of accuracy, quality, cost, and latency for our application.
+  \item \textbf{What We Need to Evaluate:} The relative performance of different LLMs (e.g., a base model like Llama 3 or an API-based model like Gemini) for the specific tasks of grading and feedback generation. The goal is to determine which model provides the best balance of accuracy, quality, cost, and latency for our application.
 \end{itemize}
 
 \begin{itemize}
@@ -1738,7 +1724,7 @@ This document outlines the detailed, module-by-module evaluation plan for the Au
 
 \textbf{Goal:} This guide serves as the primary onboarding and reference document for educators using the Automated Grading Framework. Its purpose is to empower you to efficiently and effectively grade student assignments, understand the AI's reasoning, and improve its performance over time. 
 
-\textbf{Scope:} This document covers the complete user workflow, from uploading assignment materials and grading student submissions to leveraging advanced features like model fine-tuning. It is not intended to be a deep technical reference for developers. 
+\textbf{Scope:} This document covers the complete user workflow, from uploading assignment materials and grading student submissions to reviewing analytics. It is not intended to be a deep technical reference for developers. 
 
 \medskip\hrule\medskip
 
@@ -1804,32 +1790,6 @@ This is where the magic happens. The AI will grade the submissions, and you will
 > 1.  \textbf{For Consistency (RAG):} Your correction is immediately stored in the system's "memory" (a Vector Store). When the AI grades the \emph{next} student, it looks at this memory to see how you graded similar answers, helping it stay consistent. 
 > 2.  \textbf{For Long-Term Improvement:} Your corrections become the training data for making the AI model itself better (see Phase 3). 
 
-\subsubsection{Phase 3 (Advanced): Improving the AI with the Finetuning Assistant}
-
-After you have graded several assignments and made corrections, you can use that data to create a new, smarter version of the AI model that is customized to your specific course and standards. 
-
-\begin{enumerate}
-  \item \textbf{Navigate} to the \textbf{"Model Finetuning Assistant"} page.
-  \item \textbf{Step 1: Generate Data:} Click the \textbf{"Generate Training Data"} button. The system will package all the corrections you've made into a single \codeword{training\_dataset.jsonl} file. A download button will appear.
-  \item \textbf{Step 2: Train in Colab:}
-\begin{itemize}
-  \item Follow the link to open Google Colab and set the runtime to \codeword{T4 GPU} as instructed.
-  \item Copy the provided Python script into a Colab cell.
-  \item Upload your \codeword{training\_dataset.jsonl} file to the Colab environment.
-  \item Run the cell. The training will take 15-20 minutes.
-\begin{enumerate}
-  \item \textbf{Step 3: Deploy Your Model:}
-\begin{itemize}
-  \item Once training is complete, a \codeword{trained\_adapters.npz} file will appear in Colab. Download it.
-  \item Move this file into the \codeword{training/} folder of this application.
-  \item \textbf{Restart the application.}
-\end{itemize}
-\end{enumerate}
-\end{itemize}
-\end{enumerate}
-
-That's it! The application will automatically detect and use your new, fine-tuned model for all future grading tasks. 
-
 \medskip\hrule\medskip
 
 \subsection{4. Troubleshooting \& FAQ}
@@ -1850,8 +1810,6 @@ That's it! The application will automatically detect and use your new, fine-tune
 \end{itemize}
 
 \begin{itemize}
-  \item \textbf{Q: I deployed a new fine-tuned model but I want to revert to the original. How?}
-  \item \textbf{A:} Simply delete the \codeword{trained\_adapters.npz} file from the \codeword{training/} directory and restart the application. The system will revert to the base model.
 \end{itemize}
 
 \medskip\hrule\medskip
@@ -2048,6 +2006,46 @@ Model selection is handled through configuration files that point the grading en
   \item When collaborating with other instructors, align on rubric terminology to keep the retrieval store consistent.
 \end{itemize}
 
+\chapter{Evaluation Asset Listings}
+\label{app:evaluation_assets}
+
+This appendix reproduces the exact Python sources that underpin the automated evaluation described in Chapter~\ref{chap:results}. Each listing is pulled directly from the repository so that auditors can inspect the executable artefacts without leaving the thesis PDF.
+
+\section{Unit Test Suite}
+
+\subsection{\texttt{tests/test\_pdf\_ingestion.py}}
+\lstinputlisting[language=Python]{tests/test_pdf_ingestion.py}
+
+\subsection{\texttt{tests/test\_grading\_validation.py}}
+\lstinputlisting[language=Python]{tests/test_grading_validation.py}
+
+\subsection{\texttt{tests/test\_code\_grader\_module.py}}
+\lstinputlisting[language=Python]{tests/test_code_grader_module.py}
+
+\subsection{\texttt{tests/test\_math\_grader\_module.py}}
+\lstinputlisting[language=Python]{tests/test_math_grader_module.py}
+
+\subsection{\texttt{tests/test\_multimodal\_rag\_store.py}}
+\lstinputlisting[language=Python]{tests/test_multimodal_rag_store.py}
+
+\section{Figure Generation Script}
+
+\subsection{\texttt{evaluation\_reports/generate\_figures.py}}
+\lstinputlisting[language=Python]{evaluation_reports/generate_figures.py}
+
+\subsection{\texttt{evaluation\_reports/export\_datasets.py}}
+\lstinputlisting[language=Python]{evaluation_reports/export_datasets.py}
+
+\subsection{\texttt{evaluation\_reports/generate\_raw\_data.py}}
+\lstinputlisting[language=Python]{evaluation_reports/generate_raw_data.py}
+
+\subsection{\texttt{evaluation\_reports/run\_quality\_checks.py}}
+\lstinputlisting[language=Python]{evaluation_reports/run_quality_checks.py}
+
+\section{Data Extracts}
+
+The figures and metrics above are driven by sanitized CSV exports produced by the evaluation notebooks. Each file resides in \codeword{evaluation\_reports/data/} and mirrors the aggregates cited in Chapter~\ref{chap:results}. The upstream notebook dumps (with pseudonymous IDs) are stored in \codeword{evaluation\_reports/raw/}; running \codeword{evaluation\_reports/generate\_raw\_data.py} recreates them, \codeword{evaluation\_reports/export\_datasets.py} removes identifiers, and \codeword{evaluation\_reports/generate\_figures.py} redraws the figures. Reviewers can also open \codeword{evaluation\_reports/notebooks/evaluation\_pipeline.ipynb} to execute the same commands in an interactive environment.
+
 \chapter*{Acknowledgments}
 \label{chap:acknowledgments}
 
@@ -2096,8 +2094,8 @@ M.~Törnqvist, et~al.
 \newblock In \emph{Proceedings of the Empirical Methods in Natural Language Processing}, 2023.
 
 \bibitem{chu2025}
-Y.~Chu, et~al.
-\newblock GradeRAG: Retrieval-augmented short answer grading.
+Y.~Chu, et~al. 
+\newblock GradeRAG: Retrieval-augmented short answer grading. 
 \newblock In \emph{Proceedings of the International Conference on Learning Analytics}, 2025.
 
 \bibitem{mlx2024}

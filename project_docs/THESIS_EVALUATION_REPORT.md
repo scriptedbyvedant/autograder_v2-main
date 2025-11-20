@@ -18,6 +18,17 @@ Test data consisted of anonymised lecturer rubrics and student submissions (PDF/
 
 ---
 
+## 1.1 Data Lineage & Reproducibility
+
+1.  Run `python evaluation_reports/generate_raw_data.py` (or the accompanying notebook) to recreate the pseudonymised raw exports under `evaluation_reports/raw/`.
+2.  Running `python evaluation_reports/export_datasets.py` strips those identifiers and writes the thesis-facing aggregates into `evaluation_reports/data/`.
+3.  Running `python evaluation_reports/generate_figures.py` consumes the sanitised CSVs and regenerates all figures referenced in this report and the thesis.
+4.  Optional: `python evaluation_reports/run_quality_checks.py` recomputes the MAE/Pearson/DeepEval tables printed below.
+
+Both scripts are committed to the repository and rely solely on open-source dependencies (pandas, numpy, matplotlib), mirroring the tooling constraints documented in the thesis.
+
+---
+
 ## 2. Evaluation Matrix (Derived from `project_docs/EVALUATION.md`)
 
 ### 2.1 Data Ingestion & ETL

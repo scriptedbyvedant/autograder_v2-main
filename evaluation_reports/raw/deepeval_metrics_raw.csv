@@ -1,0 +1,5 @@
+metric,single_agent_score,multi_agent_score,dataset
+Faithfulness,0.64,0.84,AI-Fundamentals
+Relevance,0.61,0.82,AI-Fundamentals
+Coherence,0.58,0.78,AI-Fundamentals
+Tone,0.67,0.85,AI-Fundamentals

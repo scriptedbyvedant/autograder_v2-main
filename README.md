@@ -16,6 +16,7 @@ LLM AutoGrader is a Streamlit-based teaching assistant that automates grading wo
 - [Running the Application](#running-the-application)
 - [Typical Workflow](#typical-workflow)
 - [Utilities](#utilities)
+- [Reproducing Evaluation Results](#reproducing-evaluation-results)
 - [Testing and Quality](#testing-and-quality)
 - [Troubleshooting](#troubleshooting)
 - [Further Documentation](#further-documentation)
@@ -270,3 +271,23 @@ Contributions are welcome. Please open an issue describing the change you propos
 
 ## License
 This project is distributed under the terms of the [GNU General Public License v3.0](LICENSE). By contributing or redistributing, you agree to comply with the obligations of GPLv3, including making source code for derivative works available under the same license and preserving copyright notices.
+- [Evaluation reports](evaluation_reports/) – figure PNGs, raw CSV exports, sanitisation & plotting scripts, and the notebook used to reproduce thesis metrics.
+
+## Reproducing Evaluation Results
+All evaluation artefacts referenced in the thesis originate from the scripts inside `evaluation_reports/`. The exact sequence is:
+
+```bash
+# 1. Recreate the pseudonymised raw exports
+python evaluation_reports/generate_raw_data.py
+
+# 2. Strip identifiers and write the thesis-facing aggregates
+python evaluation_reports/export_datasets.py
+
+# 3. Rebuild every PNG figure
+python evaluation_reports/generate_figures.py
+
+# 4. Recompute the tables/metrics cited in Chapter 7
+python evaluation_reports/run_quality_checks.py
+```
+
+The companion Jupyter notebook at `evaluation_reports/notebooks/evaluation_pipeline.ipynb` runs the same commands if you prefer an interactive workflow. Each script is idempotent and deterministic, so every rerun yields the same CSVs and plots shipped with the repository.

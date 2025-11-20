@@ -1,0 +1,4 @@
+model,text_agreement,code_agreement,latency_seconds,cost_per_1k_tokens
+Mistral 7B,0.91,0.88,35,0.6
+LLaMA 3 8B,0.94,0.89,42,0.78
+Falcon 7B,0.88,0.82,51,0.55

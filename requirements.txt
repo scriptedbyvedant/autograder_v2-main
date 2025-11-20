@@ -30,6 +30,7 @@ faiss-cpu
 numpy
 sympy
 regex
+scipy
 
 # Utilities
 python-dotenv

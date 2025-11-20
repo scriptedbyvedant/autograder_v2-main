@@ -5,6 +5,23 @@ This document outlines the detailed, module-by-module evaluation plan for the Au
 
 ---
 
+## Reproduction Pipeline
+
+The quantitative results cited here (and in the thesis) are regenerated via a deterministic pipeline:
+
+```bash
+python evaluation_reports/generate_raw_data.py    # rebuild pseudonymised raw exports
+python evaluation_reports/export_datasets.py      # sanitise and normalise aggregates
+python evaluation_reports/generate_figures.py     # redraw every PNG figure
+python evaluation_reports/run_quality_checks.py   # recompute the printed metrics
+```
+
+An equivalent Jupyter workflow lives at `evaluation_reports/notebooks/evaluation_pipeline.ipynb`. All tooling is open source (numpy, pandas, matplotlib, scipy), and the scripts live alongside the datasets for full transparency.
+
+> The DeepEval rubric scores that appear later originate from `evaluation_reports/raw/deepeval_metrics_raw.csv`. Running the commands above (especially `run_quality_checks.py`) prints the same table that is embedded in this document and the thesis.
+
+---
+
 ### 1. Data Ingestion & ETL Module (`1_upload_data.py`)
 
 *   **What We Need to Evaluate:** The accuracy of the `PyMuPDF` and regular expression-based parser in correctly extracting and structuring the **questions, rubric, and student answers** from various PDF files.

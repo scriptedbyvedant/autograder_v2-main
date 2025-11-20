@@ -4,7 +4,13 @@ This document gathers every raster figure referenced in the thesis so you can pr
 
 ## Usage
 - Copy the suggested LaTeX snippet under each entry when you need to inline the figure manually.
-- If a figure is marked as **missing**, regenerate or export it before the final PDF pass.
+- Regenerate any figure by running:
+  ```bash
+  python evaluation_reports/generate_raw_data.py
+  python evaluation_reports/export_datasets.py
+  python evaluation_reports/generate_figures.py
+  ```
+- If a figure is marked as **missing**, rerun the commands above before the final PDF pass.
 
 ---
 
@@ -103,8 +109,7 @@ This document gathers every raster figure referenced in the thesis so you can pr
 ---
 
 ### `evaluation_reports/figure_accuracy.png` - AI vs Lecturer Score Agreement
-- **Status:** **missing** (export the consolidated accuracy chart to `evaluation_reports/figure_accuracy.png`).
-- **Suggested LaTeX:**
+![AI vs Lecturer Score Agreement](figure_accuracy.png)
 
 ```latex
 \begin{figure}[htbp]
@@ -118,8 +123,7 @@ This document gathers every raster figure referenced in the thesis so you can pr
 ---
 
 ### `evaluation_reports/figure_turnaround.png` - Turnaround Time Trend
-- **Status:** **missing** (regenerate the turnaround chart and save it as `evaluation_reports/figure_turnaround.png`).
-- **Suggested LaTeX:**
+![Turnaround Time Trend](figure_turnaround.png)
 
 ```latex
 \begin{figure}[htbp]
@@ -133,8 +137,7 @@ This document gathers every raster figure referenced in the thesis so you can pr
 ---
 
 ### `evaluation_reports/figure_usage.png` - Feature Usage Share
-- **Status:** **missing** (export the feature usage breakdown to `evaluation_reports/figure_usage.png`).
-- **Suggested LaTeX:**
+![Feature Usage Share](figure_usage.png)
 
 ```latex
 \begin{figure}[htbp]
