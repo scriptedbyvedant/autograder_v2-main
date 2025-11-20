@@ -164,8 +164,6 @@ Both scripts are committed to the repository and rely solely on open-source depe
 | --- | --- | --- | --- |
 | INF‑01 | PostgreSQL schema bootstrap | Tables created automatically | ✅ Pass |
 | INF‑02 | Env configuration check | `.env` values propagate to graders | ✅ Pass |
-| INF‑03 | Fine-tuning assistant | LoRA pipeline accessible | ❌ Deferred |
-| INF‑04 | GCP reference deployment | Cloud Run + Functions prototype | ⚠ Pending |
 
 ---
 
