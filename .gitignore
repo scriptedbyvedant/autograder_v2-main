@@ -16,3 +16,4 @@ __pycache__/
 *.pyc
 venv/
 myfirstproject/
+.DS_Store # only if not already listed
